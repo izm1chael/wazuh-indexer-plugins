@@ -191,5 +191,12 @@
     ],
     "index_permissions": [],
     "tenant_permissions": []
+  },
+  "incident_workflow_operator": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/workflow_operate"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
   }
 }
