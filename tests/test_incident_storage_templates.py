@@ -36,6 +36,12 @@ class IncidentTemplatesTest(unittest.TestCase):
         self.assertFalse(offer["properties"]["offered_by"]["index"])
         self.assertFalse(offer["properties"]["offered_at"]["index"])
 
+    def test_investigation_register_storage_boundaries(self):
+        fields = load("incidents")["template"]["mappings"]["properties"]
+        self.assertEqual(fields["tags"], {"type": "keyword", "ignore_above": 64})
+        for key in ("incident_relations", "evidence_register"):
+            self.assertEqual(fields[key], {"type": "object", "enabled": False})
+
     def test_workflow_timestamps_and_attribution_are_separate(self):
         fields = load("incidents")["template"]["mappings"]["properties"]
         for field in ("created_by", "updated_by", "owner"):
