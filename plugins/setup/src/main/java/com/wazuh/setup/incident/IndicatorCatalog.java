@@ -30,10 +30,12 @@ import java.util.UUID;
 
 /** Shared, bounded analyst indicator catalog. Records are immutable except terminal, attributed revocation. */
 public final class IndicatorCatalog {
-    public static final int MAX_RECORDS = 200, MAX_BATCH = 20;
+    public static final int MAX_RECORDS = 200, MAX_BATCH = 20, MAX_SIGHTINGS = 10, MAX_TOTAL_SIGHTINGS = 500;
     private static final Set<String> INPUT = Set.of("type", "value", "source", "external_id", "confidence", "tlp", "valid_from", "valid_until");
     private static final Set<String> FIELDS = Set.of("type", "value", "source", "external_id", "confidence", "tlp", "valid_from", "valid_until",
-            "id", "created_by", "created_at", "created_revision", "revoked_by", "revoked_at", "revoked_revision", "revocation_reason");
+            "id", "created_by", "created_at", "created_revision", "revoked_by", "revoked_at", "revoked_revision", "revocation_reason", "sightings");
+    private static final Set<String> SIGHTING_FIELDS = Set.of("revision", "observed_at", "source", "count", "recorded_by", "recorded_at", "origin",
+            "withdrawn_by", "withdrawn_at", "withdrawn_revision", "withdrawal_reason");
     private static final Set<String> TLP = Set.of("TLP:CLEAR", "TLP:GREEN", "TLP:AMBER", "TLP:AMBER+STRICT", "TLP:RED");
     private IndicatorCatalog() {}
 
@@ -93,7 +95,7 @@ public final class IndicatorCatalog {
                 throw conflict("Indicator identity already recorded; no batch changes applied");
             row.put("id", UUID.randomUUID().toString()); row.put("created_by", text(actor, 1024)); row.put("created_at", now.toString());
             row.put("created_revision", revision + 1);
-            row.put("revoked_by", null); row.put("revoked_at", null); row.put("revoked_revision", null); row.put("revocation_reason", null);
+            row.put("revoked_by", null); row.put("revoked_at", null); row.put("revoked_revision", null); row.put("revocation_reason", null); row.put("sightings", List.of());
             rows.add(row);
         }
         var next = Map.<String, Object>of("revision", revision + 1, "indicators", rows);
@@ -113,9 +115,87 @@ public final class IndicatorCatalog {
             row.put("revoked_by", text(actor, 1024)); row.put("revoked_at", now.toString());
             row.put("revoked_revision", revision + 1); row.put("revocation_reason", text(reason, 1024));
             rows.set(n, row);
-            return Map.of("revision", revision + 1, "indicators", rows);
+            var next = Map.<String, Object>of("revision", revision + 1, "indicators", rows);
+            rows(next); return next;
         }
         throw conflict("Indicator unavailable");
+    }
+
+    public static Map<String, Object> sight(Map<String, Object> current, int expected, String id, String observedAt,
+            String source, int count, String actor, Instant now) {
+        var rows = rows(current); int revision = revision(current, expected);
+        IncidentReadService.canonicalId(id);
+        int total = rows.stream().mapToInt(row -> ((List<?>) row.get("sightings")).size()).sum();
+        if (total >= MAX_TOTAL_SIGHTINGS || count < 1 || count > 1000000) throw invalid("Sighting capacity or count exceeded");
+        for (int n = 0; n < rows.size(); n++) {
+            var row = rows.get(n);
+            if (!id.equals(row.get("id"))) continue;
+            var sightings = sightings(row, revision);
+            Instant observed = time(observedAt); String provenance = text(source, 256);
+            if (sightings.size() >= MAX_SIGHTINGS || now.isBefore(time(row.get("created_at"))) || observed.isAfter(now) ||
+                    observed.isBefore(time(row.get("valid_from"))) || !observed.isBefore(time(row.get("valid_until"))) ||
+                    (row.get("revoked_at") != null && !observed.isBefore(time(row.get("revoked_at"))))) throw invalid("Sighting outside elapsed indicator validity or capacity");
+            if (sightings.stream().anyMatch(s -> s.get("withdrawn_at") == null && provenance.equals(s.get("source")) &&
+                    observed.toString().equals(s.get("observed_at")))) throw conflict("Sighting already recorded");
+            var record = new LinkedHashMap<String, Object>();
+            record.put("revision", revision + 1); record.put("observed_at", observed.toString()); record.put("source", provenance);
+            record.put("count", count); record.put("recorded_by", text(actor, 1024)); record.put("recorded_at", now.toString());
+            record.put("origin", "analyst_attested_external_sighting"); record.put("withdrawn_by", null); record.put("withdrawn_at", null);
+            record.put("withdrawn_revision", null); record.put("withdrawal_reason", null);
+            sightings.add(record); row.put("sightings", sightings);
+            var next = Map.<String, Object>of("revision", revision + 1, "indicators", rows);
+            rows(next); return next;
+        }
+        throw conflict("Indicator unavailable");
+    }
+
+    public static Map<String, Object> withdrawSighting(Map<String, Object> current, int expected, String id,
+            int sightingRevision, String reason, String actor, Instant now) {
+        var rows = rows(current); int revision = revision(current, expected);
+        IncidentReadService.canonicalId(id);
+        for (var row : rows) {
+            if (!id.equals(row.get("id"))) continue;
+            var sightings = sightings(row, revision);
+            for (var record : sightings) {
+                if (!Integer.valueOf(sightingRevision).equals(record.get("revision"))) continue;
+                if (record.get("withdrawn_at") != null || now.isBefore(time(record.get("recorded_at")))) throw conflict("Sighting already withdrawn or clock moved backwards");
+                record.put("withdrawn_by", text(actor, 1024)); record.put("withdrawn_at", now.toString());
+                record.put("withdrawn_revision", revision + 1); record.put("withdrawal_reason", text(reason, 1024));
+                row.put("sightings", sightings);
+                var next = Map.<String, Object>of("revision", revision + 1, "indicators", rows);
+                rows(next); return next;
+            }
+        }
+        throw conflict("Sighting unavailable");
+    }
+
+    private static ArrayList<Map<String, Object>> sightings(Map<String, Object> row, int revision) {
+        if (!(row.get("sightings") instanceof List<?> items) || items.size() > MAX_SIGHTINGS) throw invalid("Invalid sighting history");
+        var result = new ArrayList<Map<String, Object>>();
+        var live = new HashSet<String>(); int prior = (Integer) row.get("created_revision");
+        for (Object item : items) {
+            if (!(item instanceof Map<?, ?> raw) || !raw.keySet().equals(SIGHTING_FIELDS) ||
+                    !(raw.get("revision") instanceof Integer sr) || sr <= prior || sr > revision ||
+                    !(raw.get("count") instanceof Integer count) || count < 1 || count > 1000000 ||
+                    !"analyst_attested_external_sighting".equals(raw.get("origin"))) throw invalid("Invalid sighting record");
+            prior = sr;
+            Instant observed = time(raw.get("observed_at")), recorded = time(raw.get("recorded_at"));
+            String source = text(raw.get("source"), 256); text(raw.get("recorded_by"), 1024);
+            if (observed.isAfter(recorded) || recorded.isBefore(time(row.get("created_at"))) ||
+                    observed.isBefore(time(row.get("valid_from"))) || !observed.isBefore(time(row.get("valid_until"))) ||
+                    (row.get("revoked_at") != null && !observed.isBefore(time(row.get("revoked_at"))))) throw invalid("Invalid sighting interval");
+            if (raw.get("withdrawn_at") == null) {
+                if (raw.get("withdrawn_by") != null || raw.get("withdrawn_revision") != null || raw.get("withdrawal_reason") != null ||
+                        !live.add(source + "\n" + observed)) throw invalid("Duplicate or invalid sighting");
+            } else {
+                if (time(raw.get("withdrawn_at")).isBefore(recorded) || !(raw.get("withdrawn_revision") instanceof Integer wr) ||
+                        wr <= sr || wr > revision) throw invalid("Invalid sighting withdrawal");
+                text(raw.get("withdrawn_by"), 1024); text(raw.get("withdrawal_reason"), 1024);
+            }
+            var copy = new LinkedHashMap<String, Object>(); SIGHTING_FIELDS.forEach(field -> copy.put(field, raw.get(field)));
+            result.add(copy);
+        }
+        return result;
     }
 
     public static Map<String, Object> project(Map<String, Object> source, Instant now) {
@@ -135,6 +215,8 @@ public final class IndicatorCatalog {
                     (revision == 0) != items.isEmpty()) throw invalid("Invalid catalog");
             var rows = new ArrayList<Map<String, Object>>();
             var ids = new HashSet<String>(); var previous = new java.util.HashMap<String, Map<String, Object>>(); var external = new HashSet<String>();
+            int totalSightings = 0; var eventKinds = new java.util.HashMap<Integer, String>();
+            var creationCounts = new java.util.HashMap<Integer, Integer>();
             for (Object item : items) {
                 if (!(item instanceof Map<?, ?> raw) || !raw.keySet().equals(FIELDS)) throw invalid("Invalid indicator record");
                 var input = new LinkedHashMap<String, Object>(); INPUT.forEach(field -> input.put(field, raw.get(field)));
@@ -146,17 +228,28 @@ public final class IndicatorCatalog {
                         (row.get("external_id") != null && !external.add((String) row.get("external_id")))) throw invalid("Duplicate catalog identity");
                 text(row.get("created_by"), 1024); Instant created = time(row.get("created_at"));
                 if (!(row.get("created_revision") instanceof Integer cr) || cr < 1 || cr > revision) throw invalid("Invalid creation revision");
+                String priorEvent = eventKinds.putIfAbsent(cr, "create");
+                if (priorEvent != null && !priorEvent.equals("create") || creationCounts.merge(cr, 1, Integer::sum) > MAX_BATCH) throw invalid("Invalid catalog audit revision");
                 if (row.get("revoked_at") == null) {
                     if (row.get("revoked_by") != null || row.get("revoked_revision") != null || row.get("revocation_reason") != null) throw invalid("Invalid revocation");
                 } else {
                     if (time(row.get("revoked_at")).isBefore(created) || !(row.get("revoked_revision") instanceof Integer rr) ||
                             rr <= cr || rr > revision) throw invalid("Invalid revocation revision");
                     text(row.get("revoked_by"), 1024); text(row.get("revocation_reason"), 1024);
+                    if (eventKinds.putIfAbsent(rr, "revoke") != null) throw invalid("Duplicate catalog audit revision");
                 }
+                var history = sightings(row, revision); totalSightings += history.size();
+                if (totalSightings > MAX_TOTAL_SIGHTINGS) throw invalid("Sighting capacity exceeded");
+                for (var record : history) {
+                    if (eventKinds.putIfAbsent((Integer) record.get("revision"), "sight") != null ||
+                            (record.get("withdrawn_revision") != null && eventKinds.putIfAbsent((Integer) record.get("withdrawn_revision"), "withdraw") != null)) throw invalid("Duplicate catalog audit revision");
+                }
+                row.put("sightings", history);
                 var prior = previous.put(identity(row), row);
                 if (prior != null && (created.isBefore(time(prior.get("created_at"))) || liveAt(prior, created))) throw invalid("Overlapping catalog renewal");
                 rows.add(row);
             }
+            if (eventKinds.size() != revision) throw invalid("Catalog audit revision gap");
             return rows;
         } catch (RuntimeException e) { throw new IllegalStateException("Invalid stored indicator catalog", e); }
     }
