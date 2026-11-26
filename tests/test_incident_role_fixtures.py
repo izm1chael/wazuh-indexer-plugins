@@ -31,6 +31,8 @@ class IncidentRoleFixturesTest(unittest.TestCase):
             "incident_tuning_review": ("tuning_review",),
             "incident_metrics_reader": ("metrics_read",),
             "incident_hunt_reader": ("hunt_read",),
+            "incident_analytics_reader": ("analytics_read",),
+            "incident_analytics_executor": ("analytics_read", "analytics_execute"),
             "incident_indicator_reader": ("indicator_read",),
             "incident_indicator_writer": ("indicator_write",),
             "incident_indicator_analyst": ("indicator_read", "indicator_write"),
