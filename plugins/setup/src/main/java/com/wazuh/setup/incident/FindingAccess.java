@@ -46,6 +46,22 @@ public final class FindingAccess {
         }, listener::onFailure));
     }
 
+    /** Recheck exact search version and grouping identity under the original caller. */
+    void captureCorrelation(CorrelationPreviewService.Versioned expected, String actor, Clock clock,
+            ActionListener<FindingCaptureReceipt> listener) {
+        FindingReference reference = expected.candidate().reference();
+        client.get(new GetRequest(reference.index(), reference.documentId()), ActionListener.wrap(response -> {
+            if (!response.isExists() || !reference.index().equals(response.getIndex()) || !reference.documentId().equals(response.getId()) ||
+                    response.getSeqNo() != expected.seqNo() || response.getPrimaryTerm() != expected.primaryTerm() ||
+                    !expected.candidate().equals(CorrelationPlanner.extract(reference, response.getSourceAsMap()))) {
+                listener.onFailure(new OpenSearchStatusException("Correlation source changed or unavailable", RestStatus.CONFLICT));
+                return;
+            }
+            listener.onResponse(FindingCaptureReceipt.create(reference, response.getSourceAsMap(),
+                    clock.instant(), actor, response.getSeqNo(), response.getPrimaryTerm()));
+        }, listener::onFailure));
+    }
+
     /** Read only under the caller context, returning an allowlisted live projection. */
     void inspect(FindingReference reference, ActionListener<Map<String, Object>> listener) {
         client.get(new GetRequest(reference.index(), reference.documentId()), ActionListener.wrap(response -> {
