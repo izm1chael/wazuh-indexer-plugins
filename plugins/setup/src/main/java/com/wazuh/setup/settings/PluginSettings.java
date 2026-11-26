@@ -62,6 +62,10 @@ public class PluginSettings {
             Setting.boolSetting(
                     "plugins.setup.settings_update.enabled", true, Setting.Property.NodeScope);
 
+    /** Experimental incidents must be explicitly enabled on every node. */
+    public static final Setting<Boolean> INCIDENTS_ENABLED =
+            Setting.boolSetting("plugins.setup.incidents.enabled", false, Setting.Property.NodeScope);
+
     /**
      * Number of times an initialization task that timed out is re-attempted, each attempt separated
      * by {@link PluginSettings#BACKOFF}, before the failure is rethrown and the node shuts down. Zero

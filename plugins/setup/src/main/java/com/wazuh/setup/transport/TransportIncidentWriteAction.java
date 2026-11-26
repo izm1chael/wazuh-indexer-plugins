@@ -23,6 +23,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.opensearch.OpenSearchStatusException;
 import org.opensearch.action.support.ActionFilters;
+import org.opensearch.cluster.service.ClusterService;
+import com.wazuh.setup.settings.PluginSettings;
 import org.opensearch.action.support.HandledTransportAction;
 import org.opensearch.common.inject.Inject;
 import org.opensearch.core.action.ActionListener;
@@ -49,18 +51,23 @@ public abstract class TransportIncidentWriteAction extends HandledTransportActio
     private final Grant grant;
     private final IncidentWriteService writer;
     private final ThreadPool threadPool;
+    private final ClusterService clusterService;
 
     protected TransportIncidentWriteAction(Grant grant, TransportService transport, ActionFilters filters,
-            IncidentWriteService writer, ThreadPool threadPool) {
+            IncidentWriteService writer, ThreadPool threadPool, ClusterService clusterService) {
         super(grant.actionName(), transport, filters, IncidentWriteRequest::new);
         this.grant = grant;
         this.writer = writer;
         this.threadPool = threadPool;
+        this.clusterService = clusterService;
     }
 
     @Override
     protected void doExecute(Task task, IncidentWriteRequest request, ActionListener<IncidentWriteResponse> listener) {
         try {
+            if (!PluginSettings.INCIDENTS_ENABLED.get(clusterService.getSettings())) {
+                throw new org.opensearch.OpenSearchStatusException("Experimental incidents are disabled", org.opensearch.core.rest.RestStatus.FORBIDDEN);
+            }
             if (!grant.permits(request.operation())) {
                 listener.onFailure(new OpenSearchStatusException("Operation not permitted by transport action", RestStatus.FORBIDDEN));
                 return;
@@ -84,42 +91,42 @@ public abstract class TransportIncidentWriteAction extends HandledTransportActio
 
     public static final class Create extends TransportIncidentWriteAction {
         @Inject
-        public Create(TransportService transport, ActionFilters filters, IncidentWriteService writer, ThreadPool threadPool) {
-            super(Grant.CREATE, transport, filters, writer, threadPool);
+        public Create(TransportService transport, ActionFilters filters, IncidentWriteService writer, ThreadPool threadPool, ClusterService clusterService) {
+            super(Grant.CREATE, transport, filters, writer, threadPool, clusterService);
         }
     }
 
     public static final class Assign extends TransportIncidentWriteAction {
         @Inject
-        public Assign(TransportService transport, ActionFilters filters, IncidentWriteService writer, ThreadPool threadPool) {
-            super(Grant.ASSIGN, transport, filters, writer, threadPool);
+        public Assign(TransportService transport, ActionFilters filters, IncidentWriteService writer, ThreadPool threadPool, ClusterService clusterService) {
+            super(Grant.ASSIGN, transport, filters, writer, threadPool, clusterService);
         }
     }
 
     public static final class Update extends TransportIncidentWriteAction {
         @Inject
-        public Update(TransportService transport, ActionFilters filters, IncidentWriteService writer, ThreadPool threadPool) {
-            super(Grant.UPDATE, transport, filters, writer, threadPool);
+        public Update(TransportService transport, ActionFilters filters, IncidentWriteService writer, ThreadPool threadPool, ClusterService clusterService) {
+            super(Grant.UPDATE, transport, filters, writer, threadPool, clusterService);
         }
     }
 
     public static final class Close extends TransportIncidentWriteAction {
         @Inject
-        public Close(TransportService transport, ActionFilters filters, IncidentWriteService writer, ThreadPool threadPool) {
-            super(Grant.CLOSE, transport, filters, writer, threadPool);
+        public Close(TransportService transport, ActionFilters filters, IncidentWriteService writer, ThreadPool threadPool, ClusterService clusterService) {
+            super(Grant.CLOSE, transport, filters, writer, threadPool, clusterService);
         }
     }
 
     public static final class Reopen extends TransportIncidentWriteAction {
         @Inject
-        public Reopen(TransportService transport, ActionFilters filters, IncidentWriteService writer, ThreadPool threadPool) {
-            super(Grant.REOPEN, transport, filters, writer, threadPool);
+        public Reopen(TransportService transport, ActionFilters filters, IncidentWriteService writer, ThreadPool threadPool, ClusterService clusterService) {
+            super(Grant.REOPEN, transport, filters, writer, threadPool, clusterService);
         }
     }
     public static final class Findings extends TransportIncidentWriteAction {
         @Inject
-        public Findings(TransportService transport, ActionFilters filters, IncidentWriteService writer, ThreadPool threadPool) {
-            super(Grant.FINDINGS, transport, filters, writer, threadPool);
+        public Findings(TransportService transport, ActionFilters filters, IncidentWriteService writer, ThreadPool threadPool, ClusterService clusterService) {
+            super(Grant.FINDINGS, transport, filters, writer, threadPool, clusterService);
         }
     }
 }

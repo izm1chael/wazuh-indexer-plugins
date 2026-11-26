@@ -42,6 +42,7 @@ import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.client.Client;
 import org.opensearch.watcher.ResourceWatcherService;
 
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -49,6 +50,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
 import com.wazuh.setup.action.GetAiAssistantSettingsAction;
+import com.wazuh.setup.action.IncidentReadAction;
+import com.wazuh.setup.action.IncidentWriteAction;
+import com.wazuh.setup.incident.FindingAccess;
+import com.wazuh.setup.incident.IncidentReadService;
+import com.wazuh.setup.incident.IncidentRepository;
+import com.wazuh.setup.incident.IncidentWriteService;
+import com.wazuh.setup.rest.RestIncidentReadAction;
+import com.wazuh.setup.rest.RestIncidentWriteAction;
+import com.wazuh.setup.transport.TransportIncidentReadAction;
+import com.wazuh.setup.transport.TransportIncidentWriteAction;
 import com.wazuh.setup.action.PutAiAssistantSessionAction;
 import com.wazuh.setup.action.PutAiAssistantSettingsAction;
 import com.wazuh.setup.action.PutSettingsAction;
@@ -165,6 +176,12 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
         // AI assistant sessions data stream (stores the users' conversations with the AI assistant)
         this.indices.add(new StreamIndex("wazuh-ai-assistant-sessions", "templates/streams/ai-assistant-sessions"));
 
+        // Opt-in only. Do not provision these indices for ordinary Wazuh installations.
+        if (PluginSettings.INCIDENTS_ENABLED.get(environment.settings())) {
+            this.indices.add(new StateIndex(IncidentRepository.INCIDENTS, "templates/cases/incidents"));
+            this.indices.add(new StateIndex(IncidentRepository.ACTIVITY, "templates/cases/activity"));
+        }
+
         // State indices
         this.indices.add(new StateIndex("wazuh-agent-config", "templates/states/agent-config"));
         this.indices.add(new StateIndex("wazuh-agent-stats", "templates/states/agent-stats"));
@@ -226,7 +243,11 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
 
         // Expose the settings index and the two privileged accessors so they can be injected into
         // their respective transport actions.
-        return List.of(this.settingsIndex, this.settingsAdminIndex, this.sessionsIndex);
+        IncidentRepository incidents = new IncidentRepository(client, threadPool);
+        IncidentReadService incidentReader = new IncidentReadService(client, threadPool, incidents);
+        IncidentWriteService incidentWriter = new IncidentWriteService(incidents, new FindingAccess(client),
+                Clock.systemUTC(), error -> log.warn("Incident activity delivery pending", error));
+        return List.of(this.settingsIndex, this.settingsAdminIndex, this.sessionsIndex, incidentReader, incidentWriter);
     }
 
     @Override
@@ -307,7 +328,7 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
             SettingsFilter settingsFilter,
             IndexNameExpressionResolver indexNameExpressionResolver,
             Supplier<DiscoveryNodes> nodesInCluster) {
-        return List.of(
+        List<RestHandler> handlers = new ArrayList<>(List.of(
                 new RestPutSettingsAction(),
                 new RestGetAiAssistantSettingsAction(),
                 new RestListAiAssistantProvidersAction(),
@@ -318,7 +339,12 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
                 new RestPostAiAssistantSessionAction(),
                 new RestPutAiAssistantSessionAction(),
                 new RestPatchAiAssistantSessionAction(),
-                new RestDeleteAiAssistantSessionAction());
+                new RestDeleteAiAssistantSessionAction()));
+        if (PluginSettings.INCIDENTS_ENABLED.get(settings)) {
+            handlers.add(new RestIncidentReadAction());
+            handlers.add(new RestIncidentWriteAction());
+        }
+        return handlers;
     }
 
     @Override
@@ -331,7 +357,14 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
                 new ActionPlugin.ActionHandler<>(
                         PutAiAssistantSettingsAction.INSTANCE, TransportPutAiAssistantSettingsAction.class),
                 new ActionPlugin.ActionHandler<>(
-                        PutAiAssistantSessionAction.INSTANCE, TransportPutAiAssistantSessionAction.class));
+                        PutAiAssistantSessionAction.INSTANCE, TransportPutAiAssistantSessionAction.class),
+                new ActionPlugin.ActionHandler<>(IncidentReadAction.INSTANCE, TransportIncidentReadAction.class),
+                new ActionPlugin.ActionHandler<>(IncidentWriteAction.CREATE, TransportIncidentWriteAction.Create.class),
+                new ActionPlugin.ActionHandler<>(IncidentWriteAction.ASSIGN, TransportIncidentWriteAction.Assign.class),
+                new ActionPlugin.ActionHandler<>(IncidentWriteAction.UPDATE, TransportIncidentWriteAction.Update.class),
+                new ActionPlugin.ActionHandler<>(IncidentWriteAction.CLOSE, TransportIncidentWriteAction.Close.class),
+                new ActionPlugin.ActionHandler<>(IncidentWriteAction.REOPEN, TransportIncidentWriteAction.Reopen.class),
+                new ActionPlugin.ActionHandler<>(IncidentWriteAction.FINDINGS, TransportIncidentWriteAction.Findings.class));
     }
 
     @Override
@@ -340,6 +373,7 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
                 PluginSettings.TIMEOUT,
                 PluginSettings.BACKOFF,
                 PluginSettings.MAX_RETRIES,
-                PluginSettings.SETTINGS_UPDATE_ENABLED);
+                PluginSettings.SETTINGS_UPDATE_ENABLED,
+                PluginSettings.INCIDENTS_ENABLED);
     }
 }

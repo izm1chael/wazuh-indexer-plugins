@@ -17,6 +17,8 @@
 package com.wazuh.setup.transport;
 
 import org.opensearch.action.support.ActionFilters;
+import org.opensearch.cluster.service.ClusterService;
+import com.wazuh.setup.settings.PluginSettings;
 import org.opensearch.action.support.HandledTransportAction;
 import org.opensearch.common.inject.Inject;
 import org.opensearch.core.action.ActionListener;
@@ -36,17 +38,22 @@ import com.wazuh.setup.incident.IncidentReadService;
 public final class TransportIncidentReadAction extends HandledTransportAction<IncidentReadRequest, IncidentReadResponse> {
     private final IncidentReadService service;
     private final ThreadPool threadPool;
+    private final ClusterService clusterService;
 
     @Inject
-    public TransportIncidentReadAction(TransportService transport, ActionFilters filters, IncidentReadService service, ThreadPool threadPool) {
+    public TransportIncidentReadAction(TransportService transport, ActionFilters filters, IncidentReadService service, ThreadPool threadPool, ClusterService clusterService) {
         super(IncidentReadAction.NAME, transport, filters, IncidentReadRequest::new);
         this.service = service;
         this.threadPool = threadPool;
+        this.clusterService = clusterService;
     }
 
     @Override
     protected void doExecute(Task task, IncidentReadRequest request, ActionListener<IncidentReadResponse> listener) {
         try {
+            if (!PluginSettings.INCIDENTS_ENABLED.get(clusterService.getSettings())) {
+                throw new org.opensearch.OpenSearchStatusException("Experimental incidents are disabled", org.opensearch.core.rest.RestStatus.FORBIDDEN);
+            }
             IncidentPrincipal.require(threadPool.getThreadContext());
             if (request.id() != null) {
                 service.get(IncidentReadService.canonicalId(request.id()), ActionListener.wrap(
