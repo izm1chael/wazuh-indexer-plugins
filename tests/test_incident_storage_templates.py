@@ -27,6 +27,15 @@ class IncidentTemplatesTest(unittest.TestCase):
         self.assertEqual(activity["changes"], {"type": "object", "enabled": False})
         self.assertEqual(incident["revision"]["type"], "integer")
 
+    def test_handover_inbox_exact_recipient_mapping(self):
+        fields = load("incidents")["template"]["mappings"]["properties"]
+        offer = fields["handover"]
+        self.assertEqual(offer["dynamic"], "strict")
+        self.assertEqual(set(offer["properties"]), {"target", "offered_by", "offered_at"})
+        self.assertEqual(offer["properties"]["target"]["type"], "keyword")
+        self.assertFalse(offer["properties"]["offered_by"]["index"])
+        self.assertFalse(offer["properties"]["offered_at"]["index"])
+
     def test_workflow_timestamps_and_attribution_are_separate(self):
         fields = load("incidents")["template"]["mappings"]["properties"]
         for field in ("created_by", "updated_by", "owner"):
