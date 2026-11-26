@@ -237,7 +237,7 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
         // Opt-in only. Do not provision these indices for ordinary Wazuh installations.
         if (PluginSettings.INCIDENTS_ENABLED.get(environment.settings())) {
             this.indices.add(new StateIndex(IncidentRepository.INCIDENTS, "templates/cases/incidents"));
-            if (PluginSettings.BEHAVIOUR_OBSERVATIONS_ENABLED.get(settings))
+            if (PluginSettings.BEHAVIOUR_OBSERVATIONS_ENABLED.get(environment.settings()))
                 this.indices.add(new StateIndex(BehaviourObservationService.INDEX, "templates/cases/behaviour-observations"));
             this.indices.add(new StateIndex(IncidentRepository.ACTIVITY, "templates/cases/activity"));
             this.indices.add(new StateIndex(CorrelationPolicyStore.INDEX, "templates/cases/correlation-policies"));
