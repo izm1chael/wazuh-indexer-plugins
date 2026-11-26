@@ -34,7 +34,8 @@ public final class IncidentWriteAction extends ActionType<IncidentWriteResponse>
         public boolean permits(Operation operation) {
             return switch (this) {
                 case CREATE -> operation == Operation.CREATE;
-                case ASSIGN -> operation == Operation.ASSIGN_SELF || operation == Operation.UNASSIGN;
+                case ASSIGN -> operation == Operation.ASSIGN_SELF || operation == Operation.UNASSIGN ||
+                        operation == Operation.OFFER_HANDOVER || operation == Operation.ACCEPT_HANDOVER || operation == Operation.CANCEL_HANDOVER;
                 case UPDATE -> operation == Operation.START_TRIAGE || operation == Operation.ACTIVATE || operation == Operation.EDIT;
                 case CLOSE -> operation == Operation.CLOSE;
                 case REOPEN -> operation == Operation.REOPEN;
