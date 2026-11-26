@@ -38,6 +38,7 @@ public class AnalyticsWindowTests extends OpenSearchTestCase {
     private static final Instant UNTIL = FROM.plusSeconds(900);
     private static final Instant NOW = UNTIL.plusSeconds(120);
     private static final CorrelationPlanner.Policy DEFINITION = new CorrelationPlanner.Policy(POLICY, 1, Set.of(RULE), 15, 2);
+    private static final String HASH = "954f740e1b4222a972f26ae88dda15cddad8480f763de73f1fb180dee1185778";
     private static final AnalyticsWindow.Key KEY = new AnalyticsWindow.Key(DEPLOYMENT, POLICY, 1, FROM, UNTIL);
     private static final String JSON = "{\"policy_id\":\"" + POLICY + "\",\"policy_version\":1,\"from\":\"" + FROM + "\",\"until\":\"" + UNTIL + "\"}";
 
@@ -57,11 +58,13 @@ public class AnalyticsWindowTests extends OpenSearchTestCase {
         assertNotNull(new AnalyticsRunRequest("a".repeat(4097)).validate());
         var window = TransportAnalyticsRunAction.parse(JSON);
         assertEquals(POLICY, window.policy()); assertEquals(FROM, window.from());
-        TransportAnalyticsRunAction.authorize("runner", "runner", POLICY + ":1", window);
-        for (String approved : List.of("", POLICY + ":2", POLICY + ":01", POLICY + ":1," + POLICY + ":1", POLICY + ":1,")) {
+        assertEquals(HASH, AnalyticsWindow.policyFingerprint(DEFINITION));
+        assertEquals(HASH, TransportAnalyticsRunAction.authorize("runner", "runner", POLICY + ":1:" + HASH, window));
+        for (String approved : List.of("", POLICY + ":1", POLICY + ":2:" + HASH, POLICY + ":01:" + HASH,
+                POLICY + ":1:" + HASH + "," + POLICY + ":1:" + HASH, POLICY + ":1:" + HASH + ",", POLICY + ":1:bad")) {
             expectThrows(OpenSearchException.class, () -> TransportAnalyticsRunAction.authorize("runner", "runner", approved, window));
         }
-        expectThrows(OpenSearchException.class, () -> TransportAnalyticsRunAction.authorize("other", "runner", POLICY + ":1", window));
+        expectThrows(OpenSearchException.class, () -> TransportAnalyticsRunAction.authorize("other", "runner", POLICY + ":1:" + HASH, window));
         expectThrows(OpenSearchException.class, () -> TransportAnalyticsRunAction.parse(JSON.replace("\"policy_version\":1", "\"policy_version\":1,\"actor\":\"runner\"")));
         expectThrows(OpenSearchException.class, () -> TransportAnalyticsRunAction.parse(JSON.replace("\"policy_version\":1", "\"policy_version\":1,\"policy_version\":1")));
         expectThrows(OpenSearchException.class, () -> TransportAnalyticsRunAction.parse(JSON + "{}"));
@@ -93,6 +96,7 @@ public class AnalyticsWindowTests extends OpenSearchTestCase {
         }
         expectThrows(IllegalArgumentException.class, () -> AnalyticsWindow.plan(KEY, scan(candidates)));
         assertEquals(DEFINITION, AnalyticsExecutionService.policy(CorrelationPolicyStore.definition(DEFINITION), POLICY, 1));
+        assertNotEquals(HASH, AnalyticsWindow.policyFingerprint(new CorrelationPlanner.Policy(POLICY, 1, Set.of(RULE), 15, 3)));
         var changed = new LinkedHashMap<>(CorrelationPolicyStore.definition(DEFINITION)); changed.put("mode", "enabled");
         expectThrows(IllegalStateException.class, () -> AnalyticsExecutionService.policy(changed, POLICY, 1));
     }
