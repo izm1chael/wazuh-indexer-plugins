@@ -133,6 +133,8 @@ public final class IncidentInvestigationService {
                     Map<String, Object> result = new LinkedHashMap<>();
                     result.put("notes", notes);
                     result.put("tasks", projectTasks(stored.source()));
+                    result.put("playbooks", IncidentPlaybooks.preview(stored.source()));
+                    result.put("playbook_runs", IncidentPlaybooks.runs(stored.source()));
                     result.put("observed_revision", revision);
                     result.put("activity_pending", stored.source().get("pending_activity") != null);
                     if (hits.length > count) result.put("next_before", notes.get(count - 1).get("revision"));

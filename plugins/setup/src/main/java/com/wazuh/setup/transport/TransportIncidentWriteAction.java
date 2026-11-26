@@ -152,4 +152,9 @@ public abstract class TransportIncidentWriteAction extends HandledTransportActio
             super(Grant.RESPONSE_OUTCOME, transport, filters, writer, threadPool, clusterService);
         }
     }
+    public static final class PlaybookApply extends TransportIncidentWriteAction {
+        @Inject public PlaybookApply(TransportService transport, ActionFilters filters, IncidentWriteService writer, ThreadPool threadPool, ClusterService clusterService) {
+            super(Grant.PLAYBOOK_APPLY, transport, filters, writer, threadPool, clusterService);
+        }
+    }
 }

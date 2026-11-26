@@ -91,5 +91,12 @@
     ],
     "index_permissions": [],
     "tenant_permissions": []
+  },
+  "incident_playbook_operator": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/playbook_apply"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
   }
 }

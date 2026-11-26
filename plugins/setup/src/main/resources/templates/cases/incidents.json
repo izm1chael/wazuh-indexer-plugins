@@ -176,6 +176,10 @@
         "response_requests": {
           "type": "object",
           "enabled": false
+        },
+        "playbook_runs": {
+          "type": "object",
+          "enabled": false
         }
       }
     }

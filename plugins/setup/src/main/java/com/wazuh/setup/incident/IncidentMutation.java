@@ -37,7 +37,7 @@ import java.util.UUID;
  */
 public final class IncidentMutation {
     public enum Operation {
-        CREATE, ASSIGN_SELF, UNASSIGN, START_TRIAGE, ACTIVATE, CLOSE, REOPEN, EDIT, ATTACH_FINDING, DETACH_FINDING, ADD_NOTE, CREATE_TASK, COMPLETE_TASK, REOPEN_TASK, REQUEST_RESPONSE, CANCEL_RESPONSE, APPROVE_RESPONSE, REJECT_RESPONSE, RECORD_RESPONSE_OUTCOME
+        CREATE, ASSIGN_SELF, UNASSIGN, START_TRIAGE, ACTIVATE, CLOSE, REOPEN, EDIT, ATTACH_FINDING, DETACH_FINDING, ADD_NOTE, CREATE_TASK, COMPLETE_TASK, REOPEN_TASK, REQUEST_RESPONSE, CANCEL_RESPONSE, APPROVE_RESPONSE, REJECT_RESPONSE, RECORD_RESPONSE_OUTCOME, APPLY_PLAYBOOK
     }
 
     private static final Set<String> SEVERITY = Set.of("informational", "low", "medium", "high", "critical");
@@ -71,6 +71,7 @@ public final class IncidentMutation {
         incident.put("findings", List.of());
         incident.put("finding_count", 0);
         incident.put("tasks", List.of());
+        incident.put("playbook_runs", List.of());
         incident.put("response_requests", List.of());
         incident.put("revision", 1);
         Map<String, Object> changes = new LinkedHashMap<>();
@@ -200,6 +201,11 @@ public final class IncidentMutation {
                     case COMPLETE_TASK -> "task_completed";
                     default -> "task_reopened";
                 };
+                break;
+            case APPLY_PLAYBOOK:
+                requireOwner(owner, actor);
+                IncidentPlaybooks.apply(next, changes, input, actor, now, revision + 1);
+                kind = "playbook_applied";
                 break;
             case REQUEST_RESPONSE:
             case CANCEL_RESPONSE:

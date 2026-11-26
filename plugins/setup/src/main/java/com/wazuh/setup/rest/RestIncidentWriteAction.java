@@ -67,6 +67,7 @@ public final class RestIncidentWriteAction extends BaseRestHandler {
             case "approve-response" -> new Dispatch(IncidentWriteAction.RESPONSE_APPROVAL, Operation.APPROVE_RESPONSE);
             case "reject-response" -> new Dispatch(IncidentWriteAction.RESPONSE_APPROVAL, Operation.REJECT_RESPONSE);
             case "record-response-outcome" -> new Dispatch(IncidentWriteAction.RESPONSE_OUTCOME, Operation.RECORD_RESPONSE_OUTCOME);
+            case "apply-playbook" -> new Dispatch(IncidentWriteAction.PLAYBOOK_APPLY, Operation.APPLY_PLAYBOOK);
             default -> throw new IllegalArgumentException("Unknown incident command");
         };
     }
