@@ -37,7 +37,6 @@ import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.TransportService;
 
 import java.time.Instant;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -68,25 +67,27 @@ public abstract class TransportAnalyticsRunAction extends HandledTransportAction
             Window input = parse(request.payload());
             ActionListener<Map<String, Object>> result = ActionListener.wrap(body -> listener.onResponse(new IncidentReadResponse(body)), listener::onFailure);
             if (execute) {
-                authorize(actor, PluginSettings.ANALYTICS_ACTOR.get(settings), PluginSettings.ANALYTICS_POLICIES.get(settings), input);
-                service.execute(deployment, input.policy(), input.version(), input.from(), input.until(), actor, result);
+                String hash = authorize(actor, PluginSettings.ANALYTICS_ACTOR.get(settings), PluginSettings.ANALYTICS_POLICIES.get(settings), input);
+                service.execute(deployment, input.policy(), input.version(), input.from(), input.until(), actor, hash, result);
             } else service.status(deployment, input.policy(), input.version(), input.from(), input.until(), result);
         } catch (Exception e) { listener.onFailure(e); }
     }
 
-    public static void authorize(String actor, String configured, String approved, Window window) {
+    public static String authorize(String actor, String configured, String approved, Window window) {
         if (configured == null || configured.isBlank() || configured.length() > 1024 ||
-                !configured.equals(configured.trim()) || !configured.equals(actor) || approved == null || approved.length() > 2048) throw forbidden();
-        var policies = new HashSet<String>();
+                !configured.equals(configured.trim()) || !configured.equals(actor) || approved == null || approved.length() > 4096) throw forbidden();
+        var policies = new java.util.HashMap<String, String>();
         for (String entry : approved.split(",", -1)) {
             String[] parts = entry.split(":", -1);
             try {
-                if (parts.length != 2 || !parts[1].matches("[1-9][0-9]{0,9}")) throw new IllegalArgumentException();
+                if (parts.length != 3 || !parts[1].matches("[1-9][0-9]{0,9}") || !parts[2].matches("[a-f0-9]{64}")) throw new IllegalArgumentException();
                 uuid(parts[0]); int version = Integer.parseInt(parts[1]);
-                if (!policies.add(parts[0] + ":" + version) || policies.size() > 20) throw new IllegalArgumentException();
+                if (policies.putIfAbsent(parts[0] + ":" + version, parts[2]) != null || policies.size() > 20) throw new IllegalArgumentException();
             } catch (RuntimeException e) { throw forbidden(); }
         }
-        if (!policies.contains(window.policy() + ":" + window.version())) throw forbidden();
+        String hash = policies.get(window.policy() + ":" + window.version());
+        if (hash == null) throw forbidden();
+        return hash;
     }
 
     public static Window parse(String payload) {
