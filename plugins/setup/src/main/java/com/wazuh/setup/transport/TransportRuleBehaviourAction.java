@@ -51,7 +51,10 @@ public final class TransportRuleBehaviourAction extends HandledTransportAction<I
             String rule=row.get("rule_uuid").textValue();
             UUID uuid=UUID.fromString(rule);
             if(!uuid.toString().equals(rule))throw new IllegalArgumentException();
-            return new RuleBehaviourModel.Input(row.get("field").textValue(),row.get("value").textValue(),uuid,Instant.parse(row.get("day").textValue()));
+            String rawDay=row.get("day").textValue();
+            Instant day=Instant.parse(rawDay);
+            if(!day.toString().equals(rawDay))throw new IllegalArgumentException();
+            return new RuleBehaviourModel.Input(row.get("field").textValue(),row.get("value").textValue(),uuid,day);
         }catch(java.io.IOException|RuntimeException e){
             throw new OpenSearchStatusException("Invalid exact rule behaviour parameters",RestStatus.BAD_REQUEST);
         }
