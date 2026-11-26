@@ -53,6 +53,9 @@ import java.util.function.Supplier;
 
 import com.wazuh.setup.action.GetAiAssistantSettingsAction;
 import com.wazuh.setup.action.IncidentReadAction;
+import com.wazuh.setup.action.IncidentResponseReadAction;
+import com.wazuh.setup.rest.RestIncidentResponseReadAction;
+import com.wazuh.setup.transport.TransportIncidentResponseReadAction;
 import com.wazuh.setup.action.IncidentMetricsAction;
 import com.wazuh.setup.incident.IncidentMetricsService;
 import com.wazuh.setup.rest.RestIncidentMetricsAction;
@@ -376,6 +379,7 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
                 new RestDeleteAiAssistantSessionAction()));
         if (PluginSettings.INCIDENTS_ENABLED.get(settings)) {
             handlers.add(new RestIncidentReadAction());
+            handlers.add(new RestIncidentResponseReadAction());
             handlers.add(new RestIncidentMetricsAction());
             handlers.add(new RestIncidentWriteAction());
             handlers.add(new RestIncidentCorrelationAction());
@@ -399,6 +403,7 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
                 new ActionPlugin.ActionHandler<>(CorrelationPolicyAction.SAVE, TransportCorrelationPolicyAction.Save.class),
                 new ActionPlugin.ActionHandler<>(IncidentCorrelationAction.INSTANCE, TransportIncidentCorrelationAction.class),
                 new ActionPlugin.ActionHandler<>(IncidentMetricsAction.INSTANCE, TransportIncidentMetricsAction.class),
+                new ActionPlugin.ActionHandler<>(IncidentResponseReadAction.INSTANCE, TransportIncidentResponseReadAction.class),
                 new ActionPlugin.ActionHandler<>(IncidentReadAction.INSTANCE, TransportIncidentReadAction.class),
                 new ActionPlugin.ActionHandler<>(IncidentWriteAction.CREATE, TransportIncidentWriteAction.Create.class),
                 new ActionPlugin.ActionHandler<>(IncidentWriteAction.ASSIGN, TransportIncidentWriteAction.Assign.class),

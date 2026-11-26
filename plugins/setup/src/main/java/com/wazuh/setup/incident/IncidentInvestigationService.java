@@ -79,6 +79,15 @@ public final class IncidentInvestigationService {
         }, listener::onFailure));
     }
 
+    /** Dedicated response-read action is required; ordinary incident reads omit this content. */
+    public void responses(UUID id, ActionListener<Map<String, Object>> listener) {
+        repository.get(id, ActionListener.wrap(stored -> listener.onResponse(Map.of(
+                "responses", IncidentResponses.project(stored.source()),
+                "observed_revision", stored.source().get("revision"),
+                "activity_pending", stored.source().get("pending_activity") != null,
+                "mode", "manual_tracking_only")), listener::onFailure));
+    }
+
     /** Notes live in delivered immutable activity, rather than an ever-growing aggregate array. */
     public void collaboration(UUID id, int before, int limit, ActionListener<Map<String, Object>> listener) {
         repository.get(id, ActionListener.wrap(stored -> {

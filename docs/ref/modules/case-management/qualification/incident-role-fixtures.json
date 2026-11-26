@@ -60,5 +60,36 @@
     ],
     "index_permissions": [],
     "tenant_permissions": []
+  },
+  "incident_response_reader": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/response_read"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_response_requester": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/response_read",
+      "cluster:admin/wazuh/incident/response_request"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_response_approver": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/response_read",
+      "cluster:admin/wazuh/incident/response_approval"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_response_reporter": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/response_read",
+      "cluster:admin/wazuh/incident/response_outcome"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
   }
 }
