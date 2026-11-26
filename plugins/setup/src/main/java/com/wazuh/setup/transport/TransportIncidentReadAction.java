@@ -32,18 +32,21 @@ import com.wazuh.setup.action.IncidentReadAction;
 import com.wazuh.setup.action.IncidentReadRequest;
 import com.wazuh.setup.action.IncidentReadResponse;
 import com.wazuh.setup.incident.IncidentPrincipal;
+import com.wazuh.setup.incident.IncidentInvestigationService;
 import com.wazuh.setup.incident.IncidentReadService;
 
 /** Staged read action; never delegates to a generic client-controlled search endpoint. */
 public final class TransportIncidentReadAction extends HandledTransportAction<IncidentReadRequest, IncidentReadResponse> {
     private final IncidentReadService service;
+    private final IncidentInvestigationService investigation;
     private final ThreadPool threadPool;
     private final ClusterService clusterService;
 
     @Inject
-    public TransportIncidentReadAction(TransportService transport, ActionFilters filters, IncidentReadService service, ThreadPool threadPool, ClusterService clusterService) {
+    public TransportIncidentReadAction(TransportService transport, ActionFilters filters, IncidentReadService service, IncidentInvestigationService investigation, ThreadPool threadPool, ClusterService clusterService) {
         super(IncidentReadAction.NAME, transport, filters, IncidentReadRequest::new);
         this.service = service;
+        this.investigation = investigation;
         this.threadPool = threadPool;
         this.clusterService = clusterService;
     }
@@ -54,7 +57,15 @@ public final class TransportIncidentReadAction extends HandledTransportAction<In
             if (!PluginSettings.INCIDENTS_ENABLED.get(clusterService.getSettings())) {
                 throw new org.opensearch.OpenSearchStatusException("Experimental incidents are disabled", org.opensearch.core.rest.RestStatus.FORBIDDEN);
             }
-            IncidentPrincipal.require(threadPool.getThreadContext());
+            String actor = IncidentPrincipal.require(threadPool.getThreadContext());
+            if (request.view() != IncidentReadRequest.View.SUMMARY) {
+                var id = IncidentReadService.canonicalId(request.id());
+                ActionListener<Map<String, Object>> result = ActionListener.wrap(
+                        page -> listener.onResponse(new IncidentReadResponse(page)), listener::onFailure);
+                if (request.view() == IncidentReadRequest.View.ACTIVITY) investigation.activity(id, request.cursor(), request.limit(), result);
+                else investigation.findings(id, request.cursor(), request.limit(), request.expectedRevision(), actor, result);
+                return;
+            }
             if (request.id() != null) {
                 service.get(IncidentReadService.canonicalId(request.id()), ActionListener.wrap(
                         incident -> listener.onResponse(new IncidentReadResponse(Map.of("incident", incident))), listener::onFailure));

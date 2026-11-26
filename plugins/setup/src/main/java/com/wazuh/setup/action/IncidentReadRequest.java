@@ -27,16 +27,33 @@ import com.wazuh.setup.incident.IncidentReadService;
 
 /** Exactly one detail or queue query; validated again at the transport boundary. */
 public final class IncidentReadRequest extends ActionRequest {
+    public enum View { SUMMARY, ACTIVITY, FINDINGS }
+    private final View view;
+    private final int limit;
+    private final int cursor;
+    private final int expectedRevision;
     private final String id;
     private final IncidentReadService.Query query;
 
     public IncidentReadRequest(String id, IncidentReadService.Query query) {
+        this(id, query, View.SUMMARY, 0, 0, 0);
+    }
+
+    public IncidentReadRequest(String id, IncidentReadService.Query query, View view, int limit, int cursor, int expectedRevision) {
         this.id = id;
         this.query = query;
+        this.view = view;
+        this.limit = limit;
+        this.cursor = cursor;
+        this.expectedRevision = expectedRevision;
     }
 
     public IncidentReadRequest(StreamInput in) throws IOException {
         super(in);
+        this.view = in.readEnum(View.class);
+        this.limit = in.readInt();
+        this.cursor = in.readInt();
+        this.expectedRevision = in.readInt();
         this.id = in.readOptionalString();
         this.query = in.readBoolean() ? new IncidentReadService.Query(in.readString(), in.readOptionalString(),
                 in.readOptionalString(), in.readOptionalString(), in.readInt(),
@@ -46,6 +63,10 @@ public final class IncidentReadRequest extends ActionRequest {
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         super.writeTo(out);
+        out.writeEnum(view);
+        out.writeInt(limit);
+        out.writeInt(cursor);
+        out.writeInt(expectedRevision);
         out.writeOptionalString(id);
         out.writeBoolean(query != null);
         if (query != null) {
@@ -64,6 +85,10 @@ public final class IncidentReadRequest extends ActionRequest {
     public ActionRequestValidationException validate() {
         ActionRequestValidationException errors = new ActionRequestValidationException();
         if ((id == null) == (query == null)) errors.addValidationError("Exactly one incident detail or queue query required");
+        if (view == null || (view != View.SUMMARY && id == null)) errors.addValidationError("Investigation view requires an incident ID");
+        if (view == View.ACTIVITY && (limit < 1 || limit > 100 || cursor < 0 || expectedRevision != 0)) errors.addValidationError("Invalid activity page");
+        if (view == View.FINDINGS && (limit < 1 || limit > 25 || cursor < 0 || cursor > 1000 || expectedRevision < 0 || (cursor > 0 && expectedRevision == 0))) errors.addValidationError("Invalid findings page");
+        if (view == View.SUMMARY && (limit != 0 || cursor != 0 || expectedRevision != 0)) errors.addValidationError("Unexpected investigation parameters");
         if (id != null) {
             try { IncidentReadService.canonicalId(id); }
             catch (RuntimeException e) { errors.addValidationError("Canonical incident UUID required"); }
@@ -71,6 +96,10 @@ public final class IncidentReadRequest extends ActionRequest {
         return errors.validationErrors().isEmpty() ? null : errors;
     }
 
+    public View view() { return view; }
+    public int limit() { return limit; }
+    public int cursor() { return cursor; }
+    public int expectedRevision() { return expectedRevision; }
     public String id() { return id; }
     public IncidentReadService.Query query() { return query; }
 }

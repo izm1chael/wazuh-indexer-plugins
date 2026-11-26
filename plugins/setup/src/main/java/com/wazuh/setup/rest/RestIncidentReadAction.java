@@ -40,7 +40,9 @@ public final class RestIncidentReadAction extends BaseRestHandler {
 
     @Override
     public List<Route> routes() {
-        return List.of(new Route(RestRequest.Method.GET, ROOT), new Route(RestRequest.Method.GET, ROOT + "/{id}"));
+        return List.of(new Route(RestRequest.Method.GET, ROOT), new Route(RestRequest.Method.GET, ROOT + "/{id}"),
+                new Route(RestRequest.Method.GET, ROOT + "/{id}/activity"),
+                new Route(RestRequest.Method.GET, ROOT + "/{id}/findings"));
     }
 
     @Override
@@ -54,7 +56,17 @@ public final class RestIncidentReadAction extends BaseRestHandler {
                     request.param("owner"), request.param("search"), request.paramAsInt("limit", 50),
                     after == null ? null : Long.valueOf(after), request.param("after_id"));
         }
-        IncidentReadRequest read = new IncidentReadRequest(id, query);
+        IncidentReadRequest read;
+        if (id != null && request.path().endsWith("/activity")) {
+            read = new IncidentReadRequest(id, null, IncidentReadRequest.View.ACTIVITY,
+                    request.paramAsInt("limit", 50), request.paramAsInt("before", 0), 0);
+        } else if (id != null && request.path().endsWith("/findings")) {
+            read = new IncidentReadRequest(id, null, IncidentReadRequest.View.FINDINGS,
+                    request.paramAsInt("limit", 25), request.paramAsInt("offset", 0),
+                    request.paramAsInt("expected_revision", 0));
+        } else {
+            read = new IncidentReadRequest(id, query);
+        }
         return channel -> client.execute(IncidentReadAction.INSTANCE, read,
                 new RestResponseListener<IncidentReadResponse>(channel) {
                     @Override

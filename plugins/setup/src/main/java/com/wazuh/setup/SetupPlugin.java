@@ -56,6 +56,7 @@ import com.wazuh.setup.action.IncidentReadAction;
 import com.wazuh.setup.action.IncidentWriteAction;
 import com.wazuh.setup.incident.FindingAccess;
 import com.wazuh.setup.incident.IncidentReadService;
+import com.wazuh.setup.incident.IncidentInvestigationService;
 import com.wazuh.setup.incident.IncidentRecovery;
 import com.wazuh.setup.incident.IncidentRepository;
 import com.wazuh.setup.incident.IncidentWriteService;
@@ -253,9 +254,10 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
             this.incidentRecovery = new IncidentRecovery(client, threadPool, clusterService, incidents);
         }
         IncidentReadService incidentReader = new IncidentReadService(client, threadPool, incidents);
+        IncidentInvestigationService investigation = new IncidentInvestigationService(client, threadPool, incidents, new FindingAccess(client));
         IncidentWriteService incidentWriter = new IncidentWriteService(incidents, new FindingAccess(client),
                 Clock.systemUTC(), error -> log.warn("Incident activity delivery pending", error));
-        return List.of(this.settingsIndex, this.settingsAdminIndex, this.sessionsIndex, incidentReader, incidentWriter);
+        return List.of(this.settingsIndex, this.settingsAdminIndex, this.sessionsIndex, incidentReader, incidentWriter, investigation);
     }
 
     @Override
