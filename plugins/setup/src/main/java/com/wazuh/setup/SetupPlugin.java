@@ -488,6 +488,6 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
                 PluginSettings.INCIDENTS_ENABLED, PluginSettings.ANALYTICS_ENABLED, PluginSettings.ANALYTICS_DEPLOYMENT,
                 PluginSettings.ANALYTICS_ACTOR, PluginSettings.ANALYTICS_POLICIES, PluginSettings.AUTOMATION_ENABLED,
                 PluginSettings.AUTOMATION_ACTOR, PluginSettings.AUTOMATION_POLICY, PluginSettings.SOAR_ENABLED, PluginSettings.SOAR_ACTOR,
-                PluginSettings.SOAR_MANAGER, PluginSettings.SOAR_AGENTS, PluginSettings.WORKFLOWS_ENABLED);
+                PluginSettings.SOAR_MANAGER, PluginSettings.SOAR_AGENTS, PluginSettings.WORKFLOWS_ENABLED, PluginSettings.BEHAVIOUR_ENABLED);
     }
 }
