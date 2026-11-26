@@ -77,6 +77,21 @@ public class CorrelationPlannerTests extends OpenSearchTestCase {
         assertEquals(START, candidate.at());
     }
 
+    public void testRejectsMalformedAlternateRuleAndMixedIdentityRepresentations() {
+        var ref = finding("a", "cluster", "001", RULE, 0).reference();
+        var candidate = CorrelationPlanner.extract(ref, Map.of(
+                "wazuh.cluster.name", "cluster", "wazuh.agent.id", "001",
+                "wazuh", Map.of("agent", Map.of("id", "002")),
+                "wazuh.rule.uuid", RULE.toString(), "rule.uuid", "malformed",
+                "@timestamp", START.toString()));
+        assertNull(candidate.agent());
+        assertNull(candidate.rule());
+        var valid = CorrelationPlanner.extract(ref, Map.of("wazuh", Map.of("cluster", Map.of("name", "cluster"),
+                "agent", Map.of("id", "001"), "rule", Map.of("uuid", RULE.toString())), "@timestamp", START.toString()));
+        assertEquals("001", valid.agent());
+        assertEquals(RULE, valid.rule());
+    }
+
     public void testVersionAndWindowArePartOfIdentity() {
         var candidates = List.of(finding("a", "cluster", "001", RULE, 5), finding("b", "cluster", "001", RULE, 10));
         var a = plan(candidates).eligible().get(0);

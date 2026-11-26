@@ -63,7 +63,8 @@ public final class CorrelationPlanner {
         String wazuhRule = single(source, "wazuh.rule.uuid");
         String ecsRule = single(source, "rule.uuid");
         UUID rule = null;
-        if ((wazuhRule == null || ecsRule == null || wazuhRule.equalsIgnoreCase(ecsRule))) {
+        if (!invalidPresent(source, "wazuh.rule.uuid") && !invalidPresent(source, "rule.uuid") &&
+                (wazuhRule == null || ecsRule == null || wazuhRule.equalsIgnoreCase(ecsRule))) {
             String value = wazuhRule != null ? wazuhRule : ecsRule;
             try {
                 if (value != null) {
@@ -77,20 +78,42 @@ public final class CorrelationPlanner {
             String value = single(source, "@timestamp");
             if (value != null) at = Instant.parse(value);
         } catch (DateTimeException ignored) { /* Missing or invalid time is not guessed. */ }
-        // A present multivalued rule field is ambiguous even if the alternate field is singular.
-        if (ambiguous(source, "wazuh.rule.uuid") || ambiguous(source, "rule.uuid")) rule = null;
         return new Candidate(reference, cluster, agent, rule, at);
     }
 
+    private static final Object INVALID = new Object();
+
     private static String single(Map<String, Object> source, String path) {
-        if (source == null) return null;
-        // Multiple extracted values, even identical repeats, are conservatively ineligible.
-        List<String> values = FindingIntelligence.values(source, path);
-        return values.size() == 1 ? values.get(0) : null;
+        Object raw = raw(source, path);
+        return raw instanceof String value && validScope(value) ? value : null;
     }
 
-    private static boolean ambiguous(Map<String, Object> source, String path) {
-        return source != null && FindingIntelligence.values(source, path).size() > 1;
+    private static boolean invalidPresent(Map<String, Object> source, String path) {
+        Object raw = raw(source, path);
+        return raw != null && (!(raw instanceof String value) || !validScope(value) ||
+                !canonicalUuid(value));
+    }
+
+    private static boolean canonicalUuid(String value) {
+        try { return UUID.fromString(value).toString().equalsIgnoreCase(value); }
+        catch (IllegalArgumentException e) { return false; }
+    }
+
+    /** Reject arrays, mixed representations and non-scalar identity values. */
+    private static Object raw(Map<String, Object> source, String path) {
+        if (source == null) return null;
+        String[] parts = path.split("\\\\.");
+        Object node = source;
+        for (int n = 0; n < parts.length; n++) {
+            if (!(node instanceof Map<?, ?> map)) return node == null ? null : INVALID;
+            String remaining = String.join(".", java.util.Arrays.copyOfRange(parts, n, parts.length));
+            if (n < parts.length - 1 && map.containsKey(remaining)) {
+                if (map.containsKey(parts[n])) return INVALID;
+                return map.get(remaining);
+            }
+            node = map.get(parts[n]);
+        }
+        return node;
     }
 
     /** Fixed UTC tumbling windows, not sliding windows. Arrival order never changes a group key. */

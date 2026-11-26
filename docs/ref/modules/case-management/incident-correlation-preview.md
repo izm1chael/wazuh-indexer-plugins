@@ -13,3 +13,5 @@ The first deterministic planner groups explicit, allowlisted rule UUIDs by exact
 ## Execution gates
 
 Implement trusted bounded source discovery, complete-window receipts, late-arrival policy, durable idempotency and group-to-incident ledger; decide automation principal, read/disclosure scope, retention and failure behavior. Use dry-run comparison against manually labelled findings and qualify concurrency/replay, source expiry, retries, false grouping and disabled-by-default activation. No production automatic writes until reviewed.
+
+Correlation identities deliberately reject arrays, malformed alternate rule UUIDs and mixed nested/dotted representations; display extraction remains more permissive. This may exclude valid but unusual source documents and must be measured during qualification.
