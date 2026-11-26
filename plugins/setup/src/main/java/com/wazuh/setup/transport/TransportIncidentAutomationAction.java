@@ -68,9 +68,10 @@ public abstract class TransportIncidentAutomationAction extends HandledTransport
             }
             if (IncidentAutomationAction.EXECUTE_NAME.equals(action)) {
                 if (!PluginSettings.AUTOMATION_ENABLED.get(settings)) throw forbidden();
-                exact(body, Set.of("policy_id", "policy_version", "after"));
+                exact(body, Set.of("policy_id", "policy_version", "fingerprint", "after"));
                 UUID policy = uuid(body.get("policy_id")); int version = version(body);
                 String hash = authorize(actor, PluginSettings.AUTOMATION_ACTOR.get(settings), PluginSettings.AUTOMATION_POLICY.get(settings), policy, version);
+                if (!hash.equals(body.get("fingerprint"))) throw forbidden();
                 UUID after = body.get("after") == null ? null : uuid(body.get("after"));
                 service.tick(policy, version, hash, after, actor, result); return;
             }
