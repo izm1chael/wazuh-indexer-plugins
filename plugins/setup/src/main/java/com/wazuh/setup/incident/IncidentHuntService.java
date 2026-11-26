@@ -42,6 +42,7 @@ public final class IncidentHuntService {
             "user.name", "user.id", "user.domain", "dns.question.name",
             "file.hash.md5", "file.hash.sha1", "file.hash.sha256");
     private final Client client;
+    private final java.util.concurrent.Semaphore permits = new java.util.concurrent.Semaphore(2);
 
     public IncidentHuntService(Client client) { this.client = client; }
 
@@ -112,8 +113,8 @@ public final class IncidentHuntService {
     }
 
     private static void collect(Object node, String[] path, int offset, Set<String> result, int[] budget) {
-        if (node == null) return;
         if (--budget[0] < 0) throw incomplete();
+        if (node == null) return;
         if (node instanceof List<?> list) {
             for (Object value : list) collect(value, path, offset, result, budget);
         } else if (offset == path.length) {
@@ -134,7 +135,17 @@ public final class IncidentHuntService {
         SearchRequest request = new SearchRequest(FINDINGS).source(build(input));
         request.allowPartialSearchResults(false);
         request.indicesOptions(org.opensearch.action.support.IndicesOptions.strictExpandOpen());
-        client.search(request, ActionListener.wrap(response -> {
+        if (!permits.tryAcquire()) {
+            listener.onFailure(new OpenSearchStatusException("Hunt service busy", RestStatus.TOO_MANY_REQUESTS));
+            return;
+        }
+        var released = new java.util.concurrent.atomic.AtomicBoolean();
+        Runnable release = () -> { if (released.compareAndSet(false, true)) permits.release(); };
+        ActionListener<Map<String, Object>> completed = ActionListener.wrap(value -> {
+            release.run(); listener.onResponse(value);
+        }, error -> { release.run(); listener.onFailure(error); });
+        try {
+            client.search(request, ActionListener.wrap(response -> {
             try {
                 var hits = response.getHits();
                 if (response.isTimedOut() || response.getFailedShards() > 0 || response.isTerminatedEarly() == Boolean.TRUE ||
@@ -150,11 +161,12 @@ public final class IncidentHuntService {
                 }
                 rows.sort(java.util.Comparator.comparing((Map<String, Object> row) -> Instant.parse((String) row.get("timestamp")))
                         .thenComparing(row -> (String) row.get("index")).thenComparing(row -> (String) row.get("document_id")));
-                listener.onResponse(Map.of("scope", "caller_visible_findings_exact_terms", "field", input.field(),
+                completed.onResponse(Map.of("scope", "caller_visible_findings_exact_terms", "field", input.field(),
                         "values", input.values(), "from", input.from().toString(), "until", input.until().toString(),
                         "rows", rows, "match_count", rows.size()));
-            } catch (Exception e) { listener.onFailure(e); }
-        }, listener::onFailure));
+            } catch (Exception e) { completed.onFailure(e); }
+            }, completed::onFailure));
+        } catch (Exception e) { completed.onFailure(e); }
     }
 
     private static OpenSearchStatusException incomplete() {
