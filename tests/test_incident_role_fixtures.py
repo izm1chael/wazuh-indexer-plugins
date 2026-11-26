@@ -25,6 +25,16 @@ class IncidentRoleFixturesTest(unittest.TestCase):
             self.assertEqual(set(roles["incident_response_" + name]["cluster_permissions"]),
                              {prefix + grant for grant in grants})
         self.assertEqual(roles["incident_playbook_operator"]["cluster_permissions"], [prefix + "playbook_apply"])
+        for name, grants in {
+            "incident_ai_feedback": ("ai_feedback",),
+            "incident_tuning_propose": ("tuning_propose",),
+            "incident_tuning_review": ("tuning_review",),
+            "incident_metrics_reader": ("metrics_read",),
+            "incident_correlation_reviewer": ("correlation_preview",),
+            "incident_correlation_policy_reader": ("correlation_policy_read",),
+            "incident_correlation_policy_author": ("correlation_policy_read", "correlation_policy_save"),
+        }.items():
+            self.assertEqual(set(roles[name]["cluster_permissions"]), {prefix + grant for grant in grants})
         for role in roles.values():
             self.assertEqual(role["index_permissions"], [])
             self.assertEqual(role["tenant_permissions"], [])

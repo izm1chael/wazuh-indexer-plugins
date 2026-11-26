@@ -35,6 +35,11 @@ public class IncidentRestDispatchTests extends OpenSearchTestCase {
         assertSame(IncidentWriteAction.RESPONSE_APPROVAL, RestIncidentWriteAction.dispatch("reject-response").action());
         assertSame(IncidentWriteAction.RESPONSE_OUTCOME, RestIncidentWriteAction.dispatch("record-response-outcome").action());
         assertSame(IncidentWriteAction.PLAYBOOK_APPLY, RestIncidentWriteAction.dispatch("apply-playbook").action());
+        assertSame(IncidentWriteAction.TUNING_PROPOSE, RestIncidentWriteAction.dispatch("create-tuning-proposal").action());
+        assertSame(IncidentWriteAction.TUNING_PROPOSE, RestIncidentWriteAction.dispatch("withdraw-tuning-proposal").action());
+        assertSame(IncidentWriteAction.TUNING_REVIEW, RestIncidentWriteAction.dispatch("review-tuning-proposal").action());
+        assertSame(IncidentWriteAction.AI_FEEDBACK, RestIncidentWriteAction.dispatch("record-ai-feedback").action());
+        expectThrows(IllegalArgumentException.class, () -> RestIncidentWriteAction.dispatch("deploy-tuning-proposal"));
         expectThrows(IllegalArgumentException.class, () -> RestIncidentWriteAction.dispatch("execute-response"));
         expectThrows(IllegalArgumentException.class, () -> RestIncidentWriteAction.dispatch("create"));
         expectThrows(IllegalArgumentException.class, () -> RestIncidentWriteAction.dispatch("delete"));
