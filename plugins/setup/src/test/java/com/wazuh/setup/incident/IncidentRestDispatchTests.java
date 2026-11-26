@@ -25,6 +25,9 @@ public class IncidentRestDispatchTests extends OpenSearchTestCase {
     public void testRoutesBindDedicatedActions() {
         assertSame(IncidentWriteAction.CREATE, RestIncidentWriteAction.dispatch(null).action());
         assertSame(IncidentWriteAction.ASSIGN, RestIncidentWriteAction.dispatch("assign-self").action());
+        for (String command : java.util.List.of("offer-handover", "accept-handover", "cancel-handover")) {
+            assertSame(IncidentWriteAction.ASSIGN, RestIncidentWriteAction.dispatch(command).action());
+        }
         assertSame(IncidentWriteAction.UPDATE, RestIncidentWriteAction.dispatch("activate").action());
         assertSame(IncidentWriteAction.CLOSE, RestIncidentWriteAction.dispatch("close").action());
         assertSame(IncidentWriteAction.REOPEN, RestIncidentWriteAction.dispatch("reopen").action());
