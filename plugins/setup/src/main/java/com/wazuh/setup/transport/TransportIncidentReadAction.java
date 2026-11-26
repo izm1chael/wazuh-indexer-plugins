@@ -71,7 +71,7 @@ public final class TransportIncidentReadAction extends HandledTransportAction<In
                 service.get(IncidentReadService.canonicalId(request.id()), ActionListener.wrap(
                         incident -> listener.onResponse(new IncidentReadResponse(Map.of("incident", incident))), listener::onFailure));
             } else {
-                service.list(request.query(), ActionListener.wrap(
+                service.list(request.query(), actor, ActionListener.wrap(
                         page -> listener.onResponse(new IncidentReadResponse(page)), listener::onFailure));
             }
         } catch (Exception e) {
