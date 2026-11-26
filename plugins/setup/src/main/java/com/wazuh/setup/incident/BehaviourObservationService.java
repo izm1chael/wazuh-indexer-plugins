@@ -91,7 +91,7 @@ public final class BehaviourObservationService {
     public void day(Instant day,String actor,ActionListener<Map<String,Object>> listener){
         require(actor);
         if(day.getNano()!=0||Math.floorMod(day.getEpochSecond(),86400)!=0||day.isBefore(Instant.parse("2000-01-29T00:00:00Z"))||
-                day.plusSeconds(86400).isAfter(clock.instant().minusSeconds(120)))throw new IllegalArgumentException("Completed UTC day required");
+                !day.plusSeconds(86400).isBefore(Instant.parse("2100-01-01T00:00:00Z"))||day.plusSeconds(86400).isAfter(clock.instant().minusSeconds(120)))throw new IllegalArgumentException("Completed UTC day required");
         store.day(day,ActionListener.wrap(rows->listener.onResponse(Map.of("scope","shared_soc_observation_metadata","day",day.toString(),
                 "rows",rows,"count",rows.size())),listener::onFailure));
     }
@@ -99,6 +99,8 @@ public final class BehaviourObservationService {
         require(actor);
         store.get(id,ActionListener.wrap(old->{
             if(old==null)throw BehaviourObservationStore.conflict();
+            if(!Integer.valueOf(revision).equals(old.source().get("revision"))||!"unreviewed".equals(old.source().get("state")))throw BehaviourObservationStore.conflict();
+            if(actor.equals(old.source().get("actor")))throw forbidden();
             var next=BehaviourObservation.review(old.source(),revision,actor,decision,reason,clock.instant());
             store.replace(old,next,ActionListener.wrap(saved->listener.onResponse(saved.source()),listener::onFailure));
         },listener::onFailure));
@@ -112,6 +114,8 @@ public final class BehaviourObservationService {
             if("promoted".equals(row.get("state"))&&actor.equals(((Map<?,?>)row.get("review")).get("actor"))){
                 listener.onResponse(row);return;
             }
+            if(!"escalation_requested".equals(row.get("state")))throw BehaviourObservationStore.conflict();
+            if(!actor.equals(((Map<?,?>)row.get("review")).get("actor")))throw forbidden();
             var payload=BehaviourObservation.incidentPayload(row,actor);
             // Only the immutable escalation reviewer can retry. Existing create service deduplicates the incident by actor+observation ID.
             incidents.create(payload,actor,ActionListener.wrap(result->{
@@ -129,5 +133,5 @@ public final class BehaviourObservationService {
             },listener::onFailure));
         },listener::onFailure));
     }
-    private static OpenSearchStatusException forbidden(){return new OpenSearchStatusException("Behaviour publication principal or scope not approved",RestStatus.FORBIDDEN);}
+    private static OpenSearchStatusException forbidden(){return new OpenSearchStatusException("Behaviour operation principal or scope not approved",RestStatus.FORBIDDEN);}
 }
