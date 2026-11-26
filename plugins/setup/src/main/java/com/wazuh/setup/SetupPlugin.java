@@ -39,6 +39,8 @@ import org.opensearch.rest.RestController;
 import org.opensearch.rest.RestHandler;
 import org.opensearch.script.ScriptService;
 import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.threadpool.Scheduler;
+import org.opensearch.common.unit.TimeValue;
 import org.opensearch.transport.client.Client;
 import org.opensearch.watcher.ResourceWatcherService;
 
@@ -54,6 +56,7 @@ import com.wazuh.setup.action.IncidentReadAction;
 import com.wazuh.setup.action.IncidentWriteAction;
 import com.wazuh.setup.incident.FindingAccess;
 import com.wazuh.setup.incident.IncidentReadService;
+import com.wazuh.setup.incident.IncidentRecovery;
 import com.wazuh.setup.incident.IncidentRepository;
 import com.wazuh.setup.incident.IncidentWriteService;
 import com.wazuh.setup.rest.RestIncidentReadAction;
@@ -107,6 +110,8 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
     private SetupStatusIndex setupStatusIndex;
     private AiAssistantSettingsAdminIndex settingsAdminIndex;
     private AiAssistantSessionsIndex sessionsIndex;
+    private IncidentRecovery incidentRecovery;
+    private Scheduler.Cancellable incidentRecoveryTask;
     // spotless:off
     private final String[] categories = {
         "access-management",
@@ -244,6 +249,9 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
         // Expose the settings index and the two privileged accessors so they can be injected into
         // their respective transport actions.
         IncidentRepository incidents = new IncidentRepository(client, threadPool);
+        if (PluginSettings.INCIDENTS_ENABLED.get(environment.settings())) {
+            this.incidentRecovery = new IncidentRecovery(client, threadPool, clusterService, incidents);
+        }
         IncidentReadService incidentReader = new IncidentReadService(client, threadPool, incidents);
         IncidentWriteService incidentWriter = new IncidentWriteService(incidents, new FindingAccess(client),
                 Clock.systemUTC(), error -> log.warn("Incident activity delivery pending", error));
@@ -252,6 +260,11 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
 
     @Override
     public void onNodeStarted(DiscoveryNode localNode) {
+        if (this.incidentRecovery != null) {
+            // A node becoming cluster manager later must also be able to recover the outbox.
+            this.incidentRecoveryTask = this.threadPool.scheduleWithFixedDelay(this.incidentRecovery,
+                    TimeValue.timeValueSeconds(30), ThreadPool.Names.GENERIC);
+        }
         AtomicBoolean started = new AtomicBoolean(false);
         LocalNodeClusterManagerListener listener =
                 new LocalNodeClusterManagerListener() {
@@ -317,6 +330,12 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
         if (this.clusterService.state().nodes().isLocalNodeElectedClusterManager()) {
             listener.onClusterManager();
         }
+    }
+
+    @Override
+    public void close() {
+        if (this.incidentRecovery != null) this.incidentRecovery.stop();
+        if (this.incidentRecoveryTask != null) this.incidentRecoveryTask.cancel();
     }
 
     @Override
