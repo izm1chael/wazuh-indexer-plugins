@@ -53,6 +53,19 @@ public class CorrelationIncidentFactoryTests extends OpenSearchTestCase {
         assertFalse(IncidentInvestigationService.projectActivity(event).get("changes").toString().contains("finding_capture_receipts"));
     }
 
+    @SuppressWarnings("unchecked")
+    public void testCreationAuditRejectsChangedMembershipAndMissingReceipts() {
+        var source = CorrelationIncidentFactory.create(DEPLOYMENT, group(), "automation", NOW, List.of(receipt(A, "automation"), receipt(B, "automation")));
+        var event = (Map<String, Object>) source.get("pending_activity");
+        var origin = CorrelationIncidentFactory.origin(DEPLOYMENT, group());
+        var changes = new java.util.LinkedHashMap<>((Map<String, Object>) event.get("changes"));
+        var altered = new java.util.LinkedHashMap<>(event);
+        altered.put("changes", changes);
+        changes.remove("finding_capture_receipts");
+        assertFalse(CorrelationIncidentFactory.matchesCreationEvent(altered, origin, "automation"));
+        assertTrue(CorrelationIncidentFactory.matchesCreationEvent(event, origin, "automation"));
+    }
+
     public void testRejectsMissingDuplicateOrForeignActorReceipts() {
         expectThrows(IllegalArgumentException.class, () -> CorrelationIncidentFactory.create(DEPLOYMENT, group(), "automation", NOW, List.of(receipt(A, "automation"))));
         expectThrows(IllegalArgumentException.class, () -> CorrelationIncidentFactory.create(DEPLOYMENT, group(), "automation", NOW, List.of(receipt(A, "automation"), receipt(A, "automation"))));

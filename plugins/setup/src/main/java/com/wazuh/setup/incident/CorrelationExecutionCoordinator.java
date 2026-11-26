@@ -59,6 +59,20 @@ final class CorrelationExecutionCoordinator {
         }, listener::onFailure));
     }
 
+    /**
+     * Recovery after a successful aggregate write. Does not recapture findings or create
+     * an incident if the aggregate is absent; a missing aggregate is a blocked reservation.
+     * The caller still needs the qualified internal recovery authority and original actor.
+     */
+    void reconcile(UUID deployment, String reservationId, String actor, ActionListener<Result> listener) {
+        ledger.readReservation(deployment, reservationId, ActionListener.wrap(origin -> {
+            UUID id = UUID.fromString((String) origin.get("incident_id"));
+            var reservation = new CorrelationExecutionLedger.Result(reservationId, id, true);
+            incidents.get(id, ActionListener.wrap(existing ->
+                    finish(existing, origin, actor, reservation, true, listener), listener::onFailure));
+        }, listener::onFailure));
+    }
+
     private void finish(IncidentRepository.Stored stored, Map<String, Object> origin, String actor,
             CorrelationExecutionLedger.Result reservation, boolean replayed, ActionListener<Result> listener) {
         if (!CorrelationIncidentFactory.matches(stored.source(), origin, actor)) {

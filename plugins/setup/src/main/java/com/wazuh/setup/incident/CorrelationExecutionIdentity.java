@@ -39,17 +39,26 @@ final class CorrelationExecutionIdentity {
                 new HashSet<>(group.findings()).size() != group.findings().size()) {
             throw new IllegalArgumentException("Invalid correlation reservation");
         }
-        byte[] identity = hash(List.of("wazuh-correlation-reservation-v1", deployment.toString(), group.key()));
-        String id = HexFormat.of().formatHex(identity);
-        byte[] uuid = hash(List.of("wazuh-correlation-incident-v1", id));
-        uuid[6] = (byte) ((uuid[6] & 0x0f) | 0x80);
-        uuid[8] = (byte) ((uuid[8] & 0x3f) | 0x80);
-        ByteBuffer buffer = ByteBuffer.wrap(uuid);
+        String id = reservationId(deployment, group.key());
         List<String> refs = group.findings().stream().sorted(Comparator.comparing(FindingReference::index)
                 .thenComparing(FindingReference::documentId))
                 .flatMap(ref -> java.util.stream.Stream.of(ref.index(), ref.documentId())).toList();
-        return new Reservation(id, new UUID(buffer.getLong(), buffer.getLong()), group.key(),
+        return new Reservation(id, incidentId(id), group.key(),
                 HexFormat.of().formatHex(hash(refs)), group.findings().size());
+    }
+
+    static String reservationId(UUID deployment, String key) {
+        if (deployment == null || key == null || !key.matches("[a-f0-9]{64}")) throw new IllegalArgumentException("Invalid reservation identity");
+        return HexFormat.of().formatHex(hash(List.of("wazuh-correlation-reservation-v1", deployment.toString(), key)));
+    }
+
+    static UUID incidentId(String reservationId) {
+        if (reservationId == null || !reservationId.matches("[a-f0-9]{64}")) throw new IllegalArgumentException("Invalid reservation ID");
+        byte[] uuid = hash(List.of("wazuh-correlation-incident-v1", reservationId));
+        uuid[6] = (byte) ((uuid[6] & 0x0f) | 0x80);
+        uuid[8] = (byte) ((uuid[8] & 0x3f) | 0x80);
+        ByteBuffer buffer = ByteBuffer.wrap(uuid);
+        return new UUID(buffer.getLong(), buffer.getLong());
     }
 
     private static byte[] hash(List<String> values) {

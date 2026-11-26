@@ -91,6 +91,37 @@ final class CorrelationIncidentFactory {
                 !(event.get("changes") instanceof Map<?, ?> changes) ||
                 !(changes.get("correlation_origin") instanceof Map<?, ?> change) ||
                 !(change.get("after") instanceof Map<?, ?> actual)) return false;
-        return IncidentRepository.sameEvent(origin, (Map<String, Object>) actual);
+        if (!IncidentRepository.sameEvent(origin, (Map<String, Object>) actual)) return false;
+        try {
+            if (!(changes.get("findings") instanceof Map<?, ?> findingChange) ||
+                    !(findingChange.get("after") instanceof List<?> links) ||
+                    !(changes.get("finding_capture_receipts") instanceof Map<?, ?> captureChange) ||
+                    !(captureChange.get("after") instanceof List<?> captures) ||
+                    !(changes.get("finding_count") instanceof Map<?, ?> countChange) ||
+                    !(countChange.get("after") instanceof Number count) ||
+                    count.longValue() != links.size() || captures.size() != links.size() ||
+                    !(origin.get("finding_count") instanceof Number expectedCount) || expectedCount.longValue() != links.size()) return false;
+            List<FindingReference> references = links.stream()
+                    .map(link -> FindingReference.parse((Map<String, Object>) link)).toList();
+            var group = new CorrelationPlanner.Group((String) origin.get("group_key"),
+                    UUID.fromString((String) origin.get("policy_id")), ((Number) origin.get("policy_version")).intValue(),
+                    Instant.parse((String) origin.get("window_start")), Instant.parse((String) origin.get("window_end")), references);
+            var regenerated = CorrelationExecutionLedger.immutableFields(UUID.fromString((String) origin.get("deployment_id")), group);
+            if (!IncidentRepository.sameEvent(origin, regenerated)) return false;
+            var seen = new java.util.HashSet<FindingReference>();
+            for (Object capture : captures) {
+                if (!(capture instanceof Map<?, ?> receipt) || !actor.equals(receipt.get("captured_by")) ||
+                        !"caller_visible_parsed_source".equals(receipt.get("scope")) ||
+                        !"sorted-map-json-v1".equals(receipt.get("serialization")) ||
+                        !(receipt.get("sha256") instanceof String digest) || !digest.matches("[a-f0-9]{64}") ||
+                        !(receipt.get("seq_no") instanceof Number seq) || seq.longValue() < 0 ||
+                        !(receipt.get("primary_term") instanceof Number term) || term.longValue() < 1 ||
+                        !(receipt.get("captured_at") instanceof String time) ||
+                        Instant.parse(time).truncatedTo(java.time.temporal.ChronoUnit.MILLIS).isAfter(Instant.parse((String) event.get("at")))) return false;
+                FindingReference reference = FindingReference.parse((Map<String, Object>) receipt.get("reference"));
+                if (!seen.add(reference) || !references.contains(reference)) return false;
+            }
+            return seen.size() == references.size();
+        } catch (RuntimeException e) { return false; }
     }
 }

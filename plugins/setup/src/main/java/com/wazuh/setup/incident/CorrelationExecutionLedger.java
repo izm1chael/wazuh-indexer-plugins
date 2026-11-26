@@ -87,6 +87,34 @@ final class CorrelationExecutionLedger {
         }
     }
 
+    /** Read a previously reserved identity; never creates a reservation during reconciliation. */
+    void readReservation(UUID deployment, String id, ActionListener<Map<String, Object>> listener) {
+        if (deployment == null || id == null || !id.matches("[a-f0-9]{64}")) throw new IllegalArgumentException("Invalid reservation ID");
+        try (ThreadContext.StoredContext ignored = pool.getThreadContext().stashContext()) {
+            client.get(new GetRequest(INDEX, id), ActionListener.wrap(response -> {
+                if (!response.isExists()) {
+                    listener.onFailure(new OpenSearchStatusException("Reservation not found", RestStatus.NOT_FOUND));
+                    return;
+                }
+                var source = response.getSourceAsMap();
+                if (!id.equals(source.get("id")) || !deployment.toString().equals(source.get("deployment_id")) ||
+                        !"reserved".equals(source.get("state")) ||
+                        !id.equals(CorrelationExecutionIdentity.reservationId(deployment, (String) source.get("group_key"))) ||
+                        !CorrelationExecutionIdentity.incidentId(id).toString().equals(source.get("incident_id"))) {
+                    listener.onFailure(new OpenSearchStatusException("Reservation identity mismatch", RestStatus.CONFLICT));
+                    return;
+                }
+                var origin = new LinkedHashMap<String, Object>();
+                for (String field : java.util.Set.of("id", "incident_id", "deployment_id", "group_key", "policy_id",
+                        "policy_version", "window_start", "window_end", "membership_hash", "finding_count", "state")) {
+                    if (source.get(field) == null) throw new IllegalStateException("Incomplete reservation");
+                    origin.put(field, source.get(field));
+                }
+                listener.onResponse(origin);
+            }, listener::onFailure));
+        }
+    }
+
     /** Separate immutable completion receipt. Does not mutate the reservation or claim a lock. */
     void complete(Map<String, Object> origin, String actor, ActionListener<Void> listener) {
         String id = origin.get("id") + ":completed";
