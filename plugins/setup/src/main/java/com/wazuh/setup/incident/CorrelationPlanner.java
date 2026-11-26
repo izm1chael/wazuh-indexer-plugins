@@ -168,8 +168,9 @@ public final class CorrelationPlanner {
     private static String digest(Policy policy, Key key) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            for (String value : List.of("wazuh-correlation-v1", policy.id().toString(), Integer.toString(policy.version()),
+            for (String value : List.of("wazuh-correlation-v2", policy.id().toString(), Integer.toString(policy.version()),
                     Integer.toString(policy.windowMinutes()), Integer.toString(policy.minimumFindings()),
+                    policy.allowedRules().stream().map(UUID::toString).sorted().collect(java.util.stream.Collectors.joining(",")),
                     key.cluster(), key.agent(), key.rule().toString(), Long.toString(key.start()))) {
                 byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
                 digest.update(ByteBuffer.allocate(4).putInt(bytes.length).array());

@@ -42,3 +42,10 @@ Record exact artifact SHAs, node settings, role definitions and effective-role i
 
 - Reader can retrieve notes and tasks via the dedicated collaboration projection but cannot add notes or mutate tasks. Analyst may add an attributed note to an open incident even if not owner; only the owner may change tasks. Creator-only/no-access must not read collaboration or invoke the collaborate action.
 - Verify note text never appears in ordinary activity projection or incident summary. Assert no actor spoofing, no edit/delete path, no task mutation on closed incidents, no foreign task ID mutation, and no stale revision overwrite. Test over 20 notes and pagination, pending note delivery recovery, and task cap enforcement.
+
+
+### Correlation preview scenarios
+
+- Use the dedicated disposable correlation reviewer role, plus narrowly scoped finding search permissions. No default role is changed. Verify reader-only, analyst without preview grant, and no-access identities cannot invoke the preview. A preview grant alone must not bypass finding access.
+- Under DLS/FLS, inspect that only permitted matching hits and permitted source fields influence results. In particular test a filtered rule field used in the query, redacted identity fields, hidden data streams and document references. Block rollout if matching/count behavior reveals restricted facts.
+- Verify a full aligned interval, an invalid unaligned interval, 1,000 vs 1,001 matches, missing stream, unavailable shard, timeouts, rule UUID case/format, mixed representations and stable replay/group IDs. Confirm zero incident, activity, policy or evidence writes. A successful search does not prove all events arrived.

@@ -92,6 +92,14 @@ public class CorrelationPlannerTests extends OpenSearchTestCase {
         assertEquals(RULE, valid.rule());
     }
 
+    public void testPolicyRuleListChangesGroupIdentityEvenWithSameVersion() {
+        var candidates = List.of(finding("a", "cluster", "001", RULE, 5), finding("b", "cluster", "001", RULE, 10));
+        var first = plan(candidates).eligible().get(0);
+        var changed = new CorrelationPlanner.Policy(POLICY, 1, Set.of(RULE, UUID.randomUUID()), 15, 2);
+        var second = CorrelationPlanner.plan(changed, candidates, START, START.plusSeconds(3600)).eligible().get(0);
+        assertNotEquals(first.key(), second.key());
+    }
+
     public void testVersionAndWindowArePartOfIdentity() {
         var candidates = List.of(finding("a", "cluster", "001", RULE, 5), finding("b", "cluster", "001", RULE, 10));
         var a = plan(candidates).eligible().get(0);

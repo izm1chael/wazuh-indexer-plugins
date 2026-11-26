@@ -70,6 +70,7 @@ public final class CorrelationPreviewService {
     public void preview(Input input, ActionListener<Map<String, Object>> listener) {
         SearchRequest request = new SearchRequest(FINDINGS).source(build(input));
         request.allowPartialSearchResults(false);
+        request.indicesOptions(org.opensearch.action.support.IndicesOptions.strictExpandOpen());
         client.search(request, ActionListener.wrap(response -> {
             var hits = response.getHits();
             if (response.isTimedOut() || response.getFailedShards() > 0 || response.isTerminatedEarly() == Boolean.TRUE ||
