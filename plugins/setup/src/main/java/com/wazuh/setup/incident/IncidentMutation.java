@@ -37,7 +37,7 @@ import java.util.UUID;
  */
 public final class IncidentMutation {
     public enum Operation {
-        CREATE, ASSIGN_SELF, UNASSIGN, START_TRIAGE, ACTIVATE, CLOSE, REOPEN, EDIT, ATTACH_FINDING, DETACH_FINDING, ADD_NOTE, CREATE_TASK, COMPLETE_TASK, REOPEN_TASK, REQUEST_RESPONSE, CANCEL_RESPONSE, APPROVE_RESPONSE, REJECT_RESPONSE, RECORD_RESPONSE_OUTCOME, APPLY_PLAYBOOK, RECORD_AI_FEEDBACK, CREATE_TUNING_PROPOSAL, REVIEW_TUNING_PROPOSAL, WITHDRAW_TUNING_PROPOSAL, OFFER_HANDOVER, ACCEPT_HANDOVER, CANCEL_HANDOVER, SET_TAGS, ADD_RELATION, REMOVE_RELATION, REGISTER_EVIDENCE, WITHDRAW_EVIDENCE
+        CREATE, ASSIGN_SELF, UNASSIGN, START_TRIAGE, ACTIVATE, CLOSE, REOPEN, EDIT, ATTACH_FINDING, DETACH_FINDING, ADD_NOTE, CREATE_TASK, COMPLETE_TASK, REOPEN_TASK, REQUEST_RESPONSE, CANCEL_RESPONSE, APPROVE_RESPONSE, REJECT_RESPONSE, RECORD_RESPONSE_OUTCOME, APPLY_PLAYBOOK, RECORD_AI_FEEDBACK, CREATE_TUNING_PROPOSAL, REVIEW_TUNING_PROPOSAL, WITHDRAW_TUNING_PROPOSAL, OFFER_HANDOVER, ACCEPT_HANDOVER, CANCEL_HANDOVER, SET_TAGS, ADD_RELATION, REMOVE_RELATION, REGISTER_EVIDENCE, WITHDRAW_EVIDENCE, START_WORKFLOW, ADVANCE_WORKFLOW, CANCEL_WORKFLOW
     }
 
     private static final Set<String> SEVERITY = Set.of("informational", "low", "medium", "high", "critical");
@@ -77,6 +77,7 @@ public final class IncidentMutation {
         incident.put("tasks", List.of());
         incident.put("playbook_runs", List.of());
         incident.put("automation_runs", List.of());
+        incident.put("workflow_runs", List.of());
         incident.put("ai_feedback_ids", List.of());
         incident.put("tuning_proposals", List.of());
         incident.put("response_requests", List.of());
@@ -175,6 +176,7 @@ public final class IncidentMutation {
                 if (!"triaging".equals(status) && !"active".equals(status)) throw conflict("Triage before closing");
                 if (current.get("handover") != null) throw conflict("Resolve handover before closing");
                 IncidentResponses.requireNoOutstanding(current);
+                IncidentWorkflowRuns.requireNoOutstanding(current);
                 set(next, changes, "status", "closed");
                 set(next, changes, "closed_at", now);
                 if (current.get("first_closed_at") == null) set(next, changes, "first_closed_at", now);
@@ -266,6 +268,12 @@ public final class IncidentMutation {
                 IncidentAiFeedback.apply(next, changes, input, revision);
                 kind = "ai_feedback_recorded";
                 break;
+            case START_WORKFLOW:
+            case ADVANCE_WORKFLOW:
+            case CANCEL_WORKFLOW:
+                requireOwner(owner, actor);
+                kind = IncidentWorkflowRuns.apply(next, changes, operation, input, actor, now, revision + 1);
+                break;
             case APPLY_PLAYBOOK:
                 requireOwner(owner, actor);
                 IncidentPlaybooks.apply(next, changes, input, actor, now, revision + 1);
@@ -288,6 +296,7 @@ public final class IncidentMutation {
         next.put("updated_at", now);
         next.put("revision", revision + 1);
         next.put("pending_activity", activity(next, kind, changes));
+        if (Set.of(Operation.START_WORKFLOW, Operation.ADVANCE_WORKFLOW, Operation.CANCEL_WORKFLOW).contains(operation)) IncidentWorkflowRuns.runs(next);
         return next;
     }
 
