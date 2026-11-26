@@ -61,10 +61,10 @@ public final class AnalyticsExecutionService {
         runs.status(new AnalyticsWindow.Key(deployment, policy, version, from, until), listener);
     }
 
-    public void execute(UUID deployment, UUID policy, int version, Instant from, Instant until, String actor,
+    public void execute(UUID deployment, UUID policy, int version, Instant from, Instant until, String actor, String approvedHash,
             ActionListener<Map<String, Object>> listener) {
         var key = new AnalyticsWindow.Key(deployment, policy, version, from, until);
-        if (!actor.equals(IncidentPrincipal.require(pool.getThreadContext()))) throw forbidden();
+        if (!actor.equals(IncidentPrincipal.require(pool.getThreadContext())) || approvedHash == null || !approvedHash.matches("[a-f0-9]{64}")) throw forbidden();
         if (!permit.tryAcquire()) throw new OpenSearchStatusException("Analytics execution busy", RestStatus.TOO_MANY_REQUESTS);
         var released = new AtomicBoolean();
         ActionListener<Map<String, Object>> finished = ActionListener.wrap(result -> {
@@ -78,9 +78,10 @@ public final class AnalyticsExecutionService {
             long start = System.nanoTime();
             runs.status(key, ActionListener.wrap(status -> {
                 if (!"not_recorded".equals(status.get("state")) && !actor.equals(status.get("actor"))) throw forbidden();
-                if ("completed".equals(status.get("state"))) { finished.onResponse(status); return; }
                 policies.get(policy, version, ActionListener.wrap(saved -> {
                     var definition = policy(saved, policy, version);
+                    if (!approvedHash.equals(AnalyticsWindow.policyFingerprint(definition))) throw forbidden();
+                    if ("completed".equals(status.get("state"))) { finished.onResponse(status); return; }
                     var input = AnalyticsWindow.input(key, definition, clock.instant());
                     check(start);
                     try (ThreadContext.StoredContext ignored = caller.get()) {
