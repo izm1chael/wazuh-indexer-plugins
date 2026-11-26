@@ -82,12 +82,13 @@ public final class IndicatorCatalog {
         var keys = new HashSet<String>();
         var external = new HashSet<String>();
         for (var row : rows) {
-            keys.add(identity(row));
+            if (liveAt(row, now)) keys.add(identity(row));
             if (row.get("external_id") != null) external.add((String) row.get("external_id"));
         }
         for (Object item : items) {
             if (!(item instanceof Map<?, ?> raw)) throw invalid("Indicator object required");
             var row = definition(raw);
+            if (!now.isBefore(time(row.get("valid_until")))) throw invalid("Cannot add an already expired indicator");
             if (!keys.add(identity(row)) || (row.get("external_id") != null && !external.add((String) row.get("external_id"))))
                 throw conflict("Indicator identity already recorded; no batch changes applied");
             row.put("id", UUID.randomUUID().toString()); row.put("created_by", text(actor, 1024)); row.put("created_at", now.toString());
@@ -95,7 +96,9 @@ public final class IndicatorCatalog {
             row.put("revoked_by", null); row.put("revoked_at", null); row.put("revoked_revision", null); row.put("revocation_reason", null);
             rows.add(row);
         }
-        return Map.of("revision", revision + 1, "indicators", rows);
+        var next = Map.<String, Object>of("revision", revision + 1, "indicators", rows);
+        rows(next);
+        return next;
     }
 
     public static Map<String, Object> revoke(Map<String, Object> current, int expected, String id, String reason, String actor, Instant now) {
@@ -131,7 +134,7 @@ public final class IndicatorCatalog {
                     !(source.get("indicators") instanceof List<?> items) || items.size() > MAX_RECORDS ||
                     (revision == 0) != items.isEmpty()) throw invalid("Invalid catalog");
             var rows = new ArrayList<Map<String, Object>>();
-            var ids = new HashSet<String>(); var keys = new HashSet<String>(); var external = new HashSet<String>();
+            var ids = new HashSet<String>(); var previous = new java.util.HashMap<String, Map<String, Object>>(); var external = new HashSet<String>();
             for (Object item : items) {
                 if (!(item instanceof Map<?, ?> raw) || !raw.keySet().equals(FIELDS)) throw invalid("Invalid indicator record");
                 var input = new LinkedHashMap<String, Object>(); INPUT.forEach(field -> input.put(field, raw.get(field)));
@@ -139,7 +142,7 @@ public final class IndicatorCatalog {
                 if (!row.equals(input)) throw invalid("Noncanonical stored indicator");
                 FIELDS.forEach(field -> row.put(field, raw.get(field)));
                 String id = IncidentReadService.canonicalId(text(row.get("id"), 36)).toString();
-                if (!ids.add(id) || !keys.add(identity(row)) ||
+                if (!ids.add(id) ||
                         (row.get("external_id") != null && !external.add((String) row.get("external_id")))) throw invalid("Duplicate catalog identity");
                 text(row.get("created_by"), 1024); Instant created = time(row.get("created_at"));
                 if (!(row.get("created_revision") instanceof Integer cr) || cr < 1 || cr > revision) throw invalid("Invalid creation revision");
@@ -150,6 +153,8 @@ public final class IndicatorCatalog {
                             rr <= cr || rr > revision) throw invalid("Invalid revocation revision");
                     text(row.get("revoked_by"), 1024); text(row.get("revocation_reason"), 1024);
                 }
+                var prior = previous.put(identity(row), row);
+                if (prior != null && (created.isBefore(time(prior.get("created_at"))) || liveAt(prior, created))) throw invalid("Overlapping catalog renewal");
                 rows.add(row);
             }
             return rows;
@@ -160,6 +165,10 @@ public final class IndicatorCatalog {
         int revision = (Integer) current.get("revision");
         if (revision != expected || revision == Integer.MAX_VALUE) throw conflict("Indicator catalog revision changed");
         return revision;
+    }
+    private static boolean liveAt(Map<String, Object> row, Instant now) {
+        return (row.get("revoked_at") == null || now.isBefore(time(row.get("revoked_at")))) &&
+                now.isBefore(time(row.get("valid_until")));
     }
     private static String identity(Map<String, Object> row) { return row.get("type") + ":" + row.get("value"); }
     private static String text(Object value, int max) {
