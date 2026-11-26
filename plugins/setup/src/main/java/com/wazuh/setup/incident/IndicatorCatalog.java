@@ -178,7 +178,10 @@ public final class IndicatorCatalog {
     }
     private static Instant time(Object value) {
         try {
-            Instant at = Instant.parse(text(value, 30));
+            String raw = text(value, 30);
+            if (!raw.matches("[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,3})?Z")) throw invalid("Millisecond UTC timestamp required");
+            Instant at = Instant.parse(raw);
+            if (!raw.substring(0, 19).equals(at.toString().substring(0, 19))) throw invalid("Invalid calendar timestamp");
             if (at.isBefore(Instant.parse("2000-01-01T00:00:00Z")) || at.isAfter(Instant.parse("2100-01-01T00:00:00Z"))) throw invalid("Invalid time");
             return at;
         } catch (RuntimeException e) { throw invalid("Invalid indicator timestamp"); }
