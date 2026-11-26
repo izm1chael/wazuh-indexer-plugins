@@ -51,6 +51,9 @@ public final class RestIncidentWriteAction extends BaseRestHandler {
         return switch (command) {
             case "assign-self" -> new Dispatch(IncidentWriteAction.ASSIGN, Operation.ASSIGN_SELF);
             case "unassign" -> new Dispatch(IncidentWriteAction.ASSIGN, Operation.UNASSIGN);
+            case "offer-handover" -> new Dispatch(IncidentWriteAction.ASSIGN, Operation.OFFER_HANDOVER);
+            case "accept-handover" -> new Dispatch(IncidentWriteAction.ASSIGN, Operation.ACCEPT_HANDOVER);
+            case "cancel-handover" -> new Dispatch(IncidentWriteAction.ASSIGN, Operation.CANCEL_HANDOVER);
             case "start-triage" -> new Dispatch(IncidentWriteAction.UPDATE, Operation.START_TRIAGE);
             case "activate" -> new Dispatch(IncidentWriteAction.UPDATE, Operation.ACTIVATE);
             case "edit" -> new Dispatch(IncidentWriteAction.UPDATE, Operation.EDIT);
