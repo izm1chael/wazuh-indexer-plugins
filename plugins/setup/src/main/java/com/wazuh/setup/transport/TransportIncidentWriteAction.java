@@ -116,4 +116,10 @@ public abstract class TransportIncidentWriteAction extends HandledTransportActio
             super(Grant.REOPEN, transport, filters, writer, threadPool);
         }
     }
+    public static final class Findings extends TransportIncidentWriteAction {
+        @Inject
+        public Findings(TransportService transport, ActionFilters filters, IncidentWriteService writer, ThreadPool threadPool) {
+            super(Grant.FINDINGS, transport, filters, writer, threadPool);
+        }
+    }
 }

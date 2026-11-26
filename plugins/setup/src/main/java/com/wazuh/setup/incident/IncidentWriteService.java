@@ -30,10 +30,12 @@ public final class IncidentWriteService {
     public record Result(Map<String, Object> incident, boolean activityPending) {}
     private final IncidentRepository repository;
     private final Clock clock;
+    private final FindingAccess findingAccess;
     private final Consumer<Exception> deliveryFailure;
 
-    public IncidentWriteService(IncidentRepository repository, Clock clock, Consumer<Exception> deliveryFailure) {
+    public IncidentWriteService(IncidentRepository repository, FindingAccess findingAccess, Clock clock, Consumer<Exception> deliveryFailure) {
         this.repository = repository;
+        this.findingAccess = findingAccess;
         this.clock = clock;
         this.deliveryFailure = deliveryFailure;
     }
@@ -50,6 +52,24 @@ public final class IncidentWriteService {
     }
 
     public void command(UUID id, int expectedRevision, IncidentMutation.Operation operation,
+            Map<String, Object> input, String actor, ActionListener<Result> listener) {
+        if (operation == IncidentMutation.Operation.ATTACH_FINDING) {
+            final FindingReference reference;
+            try {
+                reference = FindingReference.parse(input);
+            } catch (Exception e) {
+                listener.onFailure(e);
+                return;
+            }
+            // This is the first asynchronous request, before repository.get stashes the caller.
+            findingAccess.requireVisible(reference, ActionListener.wrap(
+                    ignored -> mutate(id, expectedRevision, operation, input, actor, listener), listener::onFailure));
+            return;
+        }
+        mutate(id, expectedRevision, operation, input, actor, listener);
+    }
+
+    private void mutate(UUID id, int expectedRevision, IncidentMutation.Operation operation,
             Map<String, Object> input, String actor, ActionListener<Result> listener) {
         repository.get(id, ActionListener.wrap(previous -> {
             Map<String, Object> next = IncidentMutation.apply(previous.source(), operation, input,

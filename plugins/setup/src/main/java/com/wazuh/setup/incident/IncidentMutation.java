@@ -22,6 +22,8 @@ import org.opensearch.core.rest.RestStatus;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -35,7 +37,7 @@ import java.util.UUID;
  */
 public final class IncidentMutation {
     public enum Operation {
-        CREATE, ASSIGN_SELF, UNASSIGN, START_TRIAGE, ACTIVATE, CLOSE, REOPEN, EDIT
+        CREATE, ASSIGN_SELF, UNASSIGN, START_TRIAGE, ACTIVATE, CLOSE, REOPEN, EDIT, ATTACH_FINDING, DETACH_FINDING
     }
 
     private static final Set<String> SEVERITY = Set.of("informational", "low", "medium", "high", "critical");
@@ -66,6 +68,8 @@ public final class IncidentMutation {
         for (String field : Set.of("first_assigned_at", "triage_started_at", "activated_at", "closed_at", "first_closed_at", "reopened_at", "closure")) {
             incident.put(field, null);
         }
+        incident.put("findings", List.of());
+        incident.put("finding_count", 0);
         incident.put("revision", 1);
         Map<String, Object> changes = new LinkedHashMap<>();
         incident.forEach((key, value) -> changes.put(key, change(null, value)));
@@ -152,6 +156,30 @@ public final class IncidentMutation {
                 if (input.containsKey("tlp")) set(next, changes, "tlp", choice(input.get("tlp"), TLP, "tlp"));
                 if (changes.isEmpty()) throw conflict("Incident fields did not change");
                 kind = "edit";
+                break;
+            case ATTACH_FINDING:
+            case DETACH_FINDING:
+                requireOwner(owner, actor);
+                FindingReference reference = FindingReference.parse(input);
+                Object storedFindings = current.getOrDefault("findings", List.of());
+                if (!(storedFindings instanceof List<?> links)) throw conflict("Invalid finding links");
+                List<Object> findings = new ArrayList<>(links);
+                boolean exists = findings.contains(reference.toMap());
+                if (operation == Operation.ATTACH_FINDING) {
+                    if (exists) throw conflict("Finding already attached");
+                    if (findings.size() >= 1000) throw conflict("Incident finding limit reached");
+                    findings.add(reference.toMap());
+                    kind = "attach_finding";
+                } else {
+                    if (!exists) throw conflict("Finding not attached");
+                    findings.remove(reference.toMap());
+                    kind = "detach_finding";
+                }
+                // Store only the reference. A full before/after list would multiply audit storage.
+                next.put("findings", findings);
+                changes.put("finding", change(operation == Operation.ATTACH_FINDING ? null : reference.toMap(),
+                        operation == Operation.ATTACH_FINDING ? reference.toMap() : null));
+                set(next, changes, "finding_count", findings.size());
                 break;
             default:
                 throw invalid("Unsupported mutation");

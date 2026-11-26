@@ -141,6 +141,23 @@
               "enabled": false
             }
           }
+        },
+        "findings": {
+          "type": "nested",
+          "dynamic": "strict",
+          "properties": {
+            "index": {
+              "type": "keyword",
+              "ignore_above": 255
+            },
+            "document_id": {
+              "type": "keyword",
+              "ignore_above": 512
+            }
+          }
+        },
+        "finding_count": {
+          "type": "integer"
         }
       }
     }

@@ -37,8 +37,8 @@ public class IncidentPermissionTests extends OpenSearchTestCase {
     }
 
     public void testActionNamesAreDistinct() {
-        assertEquals(5, Set.of(Grant.CREATE.actionName(), Grant.ASSIGN.actionName(), Grant.UPDATE.actionName(),
-                Grant.CLOSE.actionName(), Grant.REOPEN.actionName()).size());
+        assertEquals(6, Set.of(Grant.CREATE.actionName(), Grant.ASSIGN.actionName(), Grant.UPDATE.actionName(),
+                Grant.CLOSE.actionName(), Grant.REOPEN.actionName(), Grant.FINDINGS.actionName()).size());
     }
 
     public void testRequestValidation() {

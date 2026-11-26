@@ -23,7 +23,7 @@ import com.wazuh.setup.incident.IncidentMutation.Operation;
 /** Separate action identities prevent a grant for one workflow from authorising another. */
 public final class IncidentWriteAction extends ActionType<IncidentWriteResponse> {
     public enum Grant {
-        CREATE("create"), ASSIGN("assign"), UPDATE("update"), CLOSE("close"), REOPEN("reopen");
+        CREATE("create"), ASSIGN("assign"), UPDATE("update"), CLOSE("close"), REOPEN("reopen"), FINDINGS("findings");
 
         private final String suffix;
         Grant(String suffix) { this.suffix = suffix; }
@@ -37,6 +37,7 @@ public final class IncidentWriteAction extends ActionType<IncidentWriteResponse>
                 case UPDATE -> operation == Operation.START_TRIAGE || operation == Operation.ACTIVATE || operation == Operation.EDIT;
                 case CLOSE -> operation == Operation.CLOSE;
                 case REOPEN -> operation == Operation.REOPEN;
+                case FINDINGS -> operation == Operation.ATTACH_FINDING || operation == Operation.DETACH_FINDING;
             };
         }
     }
@@ -46,6 +47,8 @@ public final class IncidentWriteAction extends ActionType<IncidentWriteResponse>
     public static final IncidentWriteAction UPDATE = new IncidentWriteAction(Grant.UPDATE);
     public static final IncidentWriteAction CLOSE = new IncidentWriteAction(Grant.CLOSE);
     public static final IncidentWriteAction REOPEN = new IncidentWriteAction(Grant.REOPEN);
+
+    public static final IncidentWriteAction FINDINGS = new IncidentWriteAction(Grant.FINDINGS);
 
     private IncidentWriteAction(Grant grant) {
         super(grant.actionName(), IncidentWriteResponse::new);
