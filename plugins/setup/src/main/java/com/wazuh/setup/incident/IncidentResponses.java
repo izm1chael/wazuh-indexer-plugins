@@ -95,7 +95,8 @@ final class IncidentResponses {
                 case "approved", "rejected" -> !noDecision && noFinal;
                 case "cancelled" -> !noFinal;
                 case "reported_completed", "reported_failed", "reported_not_performed" -> !noDecision && !noFinal;
-                case "dispatch_reserved", "manager_accepted", "dispatch_unknown" -> !noDecision && !noFinal && "scan_vulnerability".equals(row.get("type"));
+                case "dispatch_reserved", "manager_accepted", "dispatch_unknown" -> !noDecision && !noFinal && "scan_vulnerability".equals(row.get("type")) &&
+                        !requester.equals(row.get("finalized_by")) && !row.get("decided_by").equals(row.get("finalized_by"));
                 default -> false;
             };
             if (!valid) throw new IllegalStateException("Invalid stored response lifecycle");
