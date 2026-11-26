@@ -66,6 +66,7 @@ public final class IndicatorCatalog {
                 if (!IncidentHuntService.valid("source.ip", value)) throw invalid("Invalid IPv4 indicator");
                 return value;
             case "domain":
+                if (!value.matches("[a-zA-Z0-9.-]+")) throw invalid("Invalid ASCII domain indicator");
                 String normalized = value.toLowerCase(Locale.ROOT);
                 if (!normalized.matches("(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?") ||
                         normalized.matches("[0-9.]+")) throw invalid("Invalid ASCII domain indicator");
