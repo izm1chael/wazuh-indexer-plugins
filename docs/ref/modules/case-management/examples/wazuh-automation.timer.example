@@ -1,0 +1,12 @@
+# Example only: do not enable before authorization and runtime qualification.
+[Unit]
+Description=Periodic Wazuh incident automation sweep
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+Persistent=true
+RandomizedDelaySec=10s
+Unit=wazuh-automation.service
+
+[Install]
+WantedBy=timers.target
