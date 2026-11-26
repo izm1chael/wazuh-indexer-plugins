@@ -53,6 +53,10 @@ import java.util.function.Supplier;
 
 import com.wazuh.setup.action.GetAiAssistantSettingsAction;
 import com.wazuh.setup.action.IncidentReadAction;
+import com.wazuh.setup.action.IncidentCorrelationAction;
+import com.wazuh.setup.incident.CorrelationPreviewService;
+import com.wazuh.setup.rest.RestIncidentCorrelationAction;
+import com.wazuh.setup.transport.TransportIncidentCorrelationAction;
 import com.wazuh.setup.action.IncidentWriteAction;
 import com.wazuh.setup.incident.FindingAccess;
 import com.wazuh.setup.incident.IncidentReadService;
@@ -257,7 +261,7 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
         IncidentInvestigationService investigation = new IncidentInvestigationService(client, threadPool, incidents, new FindingAccess(client));
         IncidentWriteService incidentWriter = new IncidentWriteService(incidents, new FindingAccess(client),
                 Clock.systemUTC(), error -> log.warn("Incident activity delivery pending", error));
-        return List.of(this.settingsIndex, this.settingsAdminIndex, this.sessionsIndex, incidentReader, incidentWriter, investigation);
+        return List.of(this.settingsIndex, this.settingsAdminIndex, this.sessionsIndex, incidentReader, incidentWriter, investigation, new CorrelationPreviewService(client));
     }
 
     @Override
@@ -364,6 +368,7 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
         if (PluginSettings.INCIDENTS_ENABLED.get(settings)) {
             handlers.add(new RestIncidentReadAction());
             handlers.add(new RestIncidentWriteAction());
+            handlers.add(new RestIncidentCorrelationAction());
         }
         return handlers;
     }
@@ -379,6 +384,7 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
                         PutAiAssistantSettingsAction.INSTANCE, TransportPutAiAssistantSettingsAction.class),
                 new ActionPlugin.ActionHandler<>(
                         PutAiAssistantSessionAction.INSTANCE, TransportPutAiAssistantSessionAction.class),
+                new ActionPlugin.ActionHandler<>(IncidentCorrelationAction.INSTANCE, TransportIncidentCorrelationAction.class),
                 new ActionPlugin.ActionHandler<>(IncidentReadAction.INSTANCE, TransportIncidentReadAction.class),
                 new ActionPlugin.ActionHandler<>(IncidentWriteAction.CREATE, TransportIncidentWriteAction.Create.class),
                 new ActionPlugin.ActionHandler<>(IncidentWriteAction.ASSIGN, TransportIncidentWriteAction.Assign.class),

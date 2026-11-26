@@ -31,5 +31,12 @@
     "cluster_permissions": [],
     "index_permissions": [],
     "tenant_permissions": []
+  },
+  "incident_correlation_reviewer": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/correlation_preview"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
   }
 }
