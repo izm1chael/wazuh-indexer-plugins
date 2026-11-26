@@ -139,6 +139,7 @@ public final class IncidentInvestigationService {
                     result.put("tuning_proposals", IncidentTuningProposals.project(stored.source()));
                     result.put("incident_relations", IncidentEvidenceRegister.relations(stored.source()));
                     result.put("evidence_register", IncidentEvidenceRegister.evidence(stored.source()));
+                    result.put("hunt_bookmarks", IncidentHuntBookmarks.project(stored.source()));
                     result.put("observed_revision", revision);
                     result.put("activity_pending", stored.source().get("pending_activity") != null);
                     if (hits.length > count) result.put("next_before", notes.get(count - 1).get("revision"));
@@ -201,6 +202,7 @@ public final class IncidentInvestigationService {
         Map<String, Object> safe = new LinkedHashMap<>();
         if (source.get("changes") instanceof Map<?, ?> changes) {
             var fields = new java.util.HashSet<>(CHANGE_FIELDS);
+            if (Set.of("hunt_bookmark_saved", "hunt_bookmark_withdrawn").contains(source.get("kind"))) fields.add("bookmark_id");
             if (Set.of("workflow_started", "workflow_advanced", "workflow_failed", "workflow_completed", "workflow_cancelled").contains(source.get("kind"))) fields.addAll(Set.of("workflow_id", "workflow_stage"));
             if (Set.of("soar_dispatch_reserved", "soar_dispatch_reported").contains(source.get("kind"))) fields.addAll(Set.of("soar_response_id", "soar_state"));
             if ("automation_applied".equals(source.get("kind"))) fields.addAll(Set.of("automation_policy_id", "automation_policy_version", "automation_rule_id", "automation_trigger_revision", "automation_changed_fields"));
