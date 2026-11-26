@@ -58,8 +58,10 @@ public class IncidentTuningProposalsTests extends OpenSearchTestCase {
         assertEquals("eligible_for_human_review", replay.get("gate"));
         assertEquals(8, replay.get("removed_benign"));
         assertFalse(item.containsKey("rows"));
-        var decision = Map.of("proposal_id", item.get("id"), "decision", "accepted_for_review", "reason", "Independent review");
+        var decision = Map.of("proposal_id", item.get("id"), "decision", "accepted_for_review", "fixture_sha256", ((Map<?, ?>) item.get("replay")).get("fixture_sha256"), "reason", "Independent review");
         expectThrows(OpenSearchStatusException.class, () -> apply(proposed, REVIEW_TUNING_PROPOSAL, decision, "analyst"));
+        var mismatch = new LinkedHashMap<>(decision); mismatch.put("fixture_sha256", "c".repeat(64));
+        expectThrows(OpenSearchStatusException.class, () -> apply(proposed, REVIEW_TUNING_PROPOSAL, mismatch, "reviewer"));
         var reviewed = apply(proposed, REVIEW_TUNING_PROPOSAL, decision, "reviewer");
         assertEquals("accepted_for_review", IncidentTuningProposals.project(reviewed).get(0).get("state"));
         assertEquals(closed.get("closure"), reviewed.get("closure"));
@@ -76,7 +78,7 @@ public class IncidentTuningProposalsTests extends OpenSearchTestCase {
         assertEquals(replay, TuningReplay.evaluate(rows));
         var proposed = apply(closed(), CREATE_TUNING_PROPOSAL, proposal(true), "analyst");
         var item = IncidentTuningProposals.project(proposed).get(0);
-        var decision = Map.of("proposal_id", item.get("id"), "decision", "accepted_for_review", "reason", "Reviewed");
+        var decision = Map.of("proposal_id", item.get("id"), "decision", "accepted_for_review", "fixture_sha256", ((Map<?, ?>) item.get("replay")).get("fixture_sha256"), "reason", "Reviewed");
         expectThrows(OpenSearchStatusException.class, () -> apply(proposed, REVIEW_TUNING_PROPOSAL, decision, "reviewer"));
     }
     public void testReplayReceiptCannotHideLostSamples() {

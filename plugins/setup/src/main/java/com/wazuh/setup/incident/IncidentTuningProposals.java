@@ -84,7 +84,7 @@ final class IncidentTuningProposals {
         String kind;
         if (op == IncidentMutation.Operation.CREATE_TUNING_PROPOSAL) {
             exact(input, Set.of("rule_uuid", "baseline_sha256", "candidate_sha256", "type", "reason", "split", "rows"));
-            if (!"holdout".equals(input.get("split")) || !TYPES.contains(input.get("type"))) throw invalid("Invalid proposal type or split");
+            if (!"holdout".equals(input.get("split")) || !(input.get("type") instanceof String) || !TYPES.contains(input.get("type"))) throw invalid("Invalid proposal type or split");
             if (!Set.of("triaging", "active", "closed").contains(source.get("status"))) throw conflict("Triage before proposing tuning");
             if (rows.size() >= MAX) throw conflict("Tuning proposal capacity reached");
             String rule = identity(input.get("rule_uuid"));
@@ -107,7 +107,7 @@ final class IncidentTuningProposals {
             rows.add(record); kind = "tuning_proposed";
         } else {
             exact(input, op == IncidentMutation.Operation.REVIEW_TUNING_PROPOSAL ?
-                    Set.of("proposal_id", "decision", "reason") : Set.of("proposal_id", "reason"));
+                    Set.of("proposal_id", "decision", "reason", "fixture_sha256") : Set.of("proposal_id", "reason"));
             String id = text(input.get("proposal_id"), 64), reason = text(input.get("reason"), 2048);
             int index = -1;
             for (int n = 0; n < rows.size(); n++) if (id.equals(rows.get(n).get("id"))) { index = n; break; }
@@ -120,7 +120,10 @@ final class IncidentTuningProposals {
             } else {
                 if (actor.equals(record.get("proposed_by"))) throw new OpenSearchStatusException("Independent reviewer required", RestStatus.FORBIDDEN);
                 Object decision = input.get("decision");
-                if (!Set.of("accepted_for_review", "rejected").contains(decision)) throw invalid("Invalid review decision");
+                if (!(decision instanceof String) || !Set.of("accepted_for_review", "rejected").contains(decision)) throw invalid("Invalid review decision");
+                if (!hash(input.get("fixture_sha256")).equals(((Map<?, ?>) record.get("replay")).get("fixture_sha256"))) {
+                    throw conflict("Review does not match the recorded fixture digest");
+                }
                 state = (String) decision;
                 if ("accepted_for_review".equals(state) &&
                         !"eligible_for_human_review".equals(((Map<?, ?>) record.get("replay")).get("gate"))) {
