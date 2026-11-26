@@ -110,7 +110,7 @@ public final class IncidentInvestigationService {
                 "responses", IncidentResponses.project(stored.source()),
                 "observed_revision", stored.source().get("revision"),
                 "activity_pending", stored.source().get("pending_activity") != null,
-                "mode", "manual_tracking_only")), listener::onFailure));
+                "mode", "governed_response_tracking")), listener::onFailure));
     }
 
     /** Notes live in delivered immutable activity, rather than an ever-growing aggregate array. */
