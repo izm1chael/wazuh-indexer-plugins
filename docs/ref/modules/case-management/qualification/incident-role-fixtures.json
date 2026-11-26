@@ -105,5 +105,19 @@
     ],
     "index_permissions": [],
     "tenant_permissions": []
+  },
+  "incident_tuning_propose": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/tuning_propose"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_tuning_review": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/tuning_review"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
   }
 }

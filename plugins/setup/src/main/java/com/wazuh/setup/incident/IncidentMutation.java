@@ -37,7 +37,7 @@ import java.util.UUID;
  */
 public final class IncidentMutation {
     public enum Operation {
-        CREATE, ASSIGN_SELF, UNASSIGN, START_TRIAGE, ACTIVATE, CLOSE, REOPEN, EDIT, ATTACH_FINDING, DETACH_FINDING, ADD_NOTE, CREATE_TASK, COMPLETE_TASK, REOPEN_TASK, REQUEST_RESPONSE, CANCEL_RESPONSE, APPROVE_RESPONSE, REJECT_RESPONSE, RECORD_RESPONSE_OUTCOME, APPLY_PLAYBOOK, RECORD_AI_FEEDBACK
+        CREATE, ASSIGN_SELF, UNASSIGN, START_TRIAGE, ACTIVATE, CLOSE, REOPEN, EDIT, ATTACH_FINDING, DETACH_FINDING, ADD_NOTE, CREATE_TASK, COMPLETE_TASK, REOPEN_TASK, REQUEST_RESPONSE, CANCEL_RESPONSE, APPROVE_RESPONSE, REJECT_RESPONSE, RECORD_RESPONSE_OUTCOME, APPLY_PLAYBOOK, RECORD_AI_FEEDBACK, CREATE_TUNING_PROPOSAL, REVIEW_TUNING_PROPOSAL, WITHDRAW_TUNING_PROPOSAL
     }
 
     private static final Set<String> SEVERITY = Set.of("informational", "low", "medium", "high", "critical");
@@ -73,6 +73,7 @@ public final class IncidentMutation {
         incident.put("tasks", List.of());
         incident.put("playbook_runs", List.of());
         incident.put("ai_feedback_ids", List.of());
+        incident.put("tuning_proposals", List.of());
         incident.put("response_requests", List.of());
         incident.put("revision", 1);
         Map<String, Object> changes = new LinkedHashMap<>();
@@ -93,7 +94,9 @@ public final class IncidentMutation {
         String now = CLOCK.format(at);
         String status = (String) current.get("status");
         Object owner = current.get("owner");
-        if ("closed".equals(status) && operation != Operation.REOPEN && operation != Operation.RECORD_AI_FEEDBACK) throw conflict("Reopen before modifying");
+        if ("closed".equals(status) && operation != Operation.REOPEN && operation != Operation.RECORD_AI_FEEDBACK &&
+                operation != Operation.CREATE_TUNING_PROPOSAL && operation != Operation.REVIEW_TUNING_PROPOSAL &&
+                operation != Operation.WITHDRAW_TUNING_PROPOSAL) throw conflict("Reopen before modifying");
         Map<String, Object> next = new LinkedHashMap<>(current);
         Map<String, Object> changes = new LinkedHashMap<>();
         String kind;
@@ -202,6 +205,14 @@ public final class IncidentMutation {
                     case COMPLETE_TASK -> "task_completed";
                     default -> "task_reopened";
                 };
+                break;
+            case CREATE_TUNING_PROPOSAL:
+            case WITHDRAW_TUNING_PROPOSAL:
+                requireOwner(owner, actor);
+                kind = IncidentTuningProposals.apply(next, changes, operation, input, actor, now, revision + 1);
+                break;
+            case REVIEW_TUNING_PROPOSAL:
+                kind = IncidentTuningProposals.apply(next, changes, operation, input, actor, now, revision + 1);
                 break;
             case RECORD_AI_FEEDBACK:
                 requireOwner(owner, actor);

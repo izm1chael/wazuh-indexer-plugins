@@ -162,4 +162,15 @@ public abstract class TransportIncidentWriteAction extends HandledTransportActio
             super(Grant.AI_FEEDBACK, transport, filters, writer, threadPool, clusterService);
         }
     }
+    public static final class TuningPropose extends TransportIncidentWriteAction {
+        @Inject public TuningPropose(TransportService transport, ActionFilters filters, IncidentWriteService writer, ThreadPool threadPool, ClusterService clusterService) {
+            super(Grant.TUNING_PROPOSE, transport, filters, writer, threadPool, clusterService);
+        }
+    }
+
+    public static final class TuningReview extends TransportIncidentWriteAction {
+        @Inject public TuningReview(TransportService transport, ActionFilters filters, IncidentWriteService writer, ThreadPool threadPool, ClusterService clusterService) {
+            super(Grant.TUNING_REVIEW, transport, filters, writer, threadPool, clusterService);
+        }
+    }
 }

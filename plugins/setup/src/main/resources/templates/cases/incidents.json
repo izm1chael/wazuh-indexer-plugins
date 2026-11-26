@@ -185,6 +185,10 @@
           "type": "keyword",
           "index": false,
           "doc_values": false
+        },
+        "tuning_proposals": {
+          "type": "object",
+          "enabled": false
         }
       }
     }

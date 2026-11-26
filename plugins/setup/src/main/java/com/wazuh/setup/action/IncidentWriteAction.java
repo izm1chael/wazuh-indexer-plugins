@@ -24,7 +24,7 @@ import com.wazuh.setup.incident.IncidentMutation.Operation;
 public final class IncidentWriteAction extends ActionType<IncidentWriteResponse> {
     public enum Grant {
         CREATE("create"), ASSIGN("assign"), UPDATE("update"), CLOSE("close"), REOPEN("reopen"), FINDINGS("findings"), COLLABORATE("collaborate"),
-        RESPONSE_REQUEST("response_request"), RESPONSE_APPROVAL("response_approval"), RESPONSE_OUTCOME("response_outcome"), PLAYBOOK_APPLY("playbook_apply"), AI_FEEDBACK("ai_feedback");
+        RESPONSE_REQUEST("response_request"), RESPONSE_APPROVAL("response_approval"), RESPONSE_OUTCOME("response_outcome"), PLAYBOOK_APPLY("playbook_apply"), AI_FEEDBACK("ai_feedback"), TUNING_PROPOSE("tuning_propose"), TUNING_REVIEW("tuning_review");
 
         private final String suffix;
         Grant(String suffix) { this.suffix = suffix; }
@@ -41,6 +41,8 @@ public final class IncidentWriteAction extends ActionType<IncidentWriteResponse>
                 case COLLABORATE -> operation == Operation.ADD_NOTE || operation == Operation.CREATE_TASK || operation == Operation.COMPLETE_TASK || operation == Operation.REOPEN_TASK;
                 case RESPONSE_REQUEST -> operation == Operation.REQUEST_RESPONSE || operation == Operation.CANCEL_RESPONSE;
                 case RESPONSE_APPROVAL -> operation == Operation.APPROVE_RESPONSE || operation == Operation.REJECT_RESPONSE;
+                case TUNING_PROPOSE -> operation == Operation.CREATE_TUNING_PROPOSAL || operation == Operation.WITHDRAW_TUNING_PROPOSAL;
+                case TUNING_REVIEW -> operation == Operation.REVIEW_TUNING_PROPOSAL;
                 case AI_FEEDBACK -> operation == Operation.RECORD_AI_FEEDBACK;
                 case PLAYBOOK_APPLY -> operation == Operation.APPLY_PLAYBOOK;
                 case RESPONSE_OUTCOME -> operation == Operation.RECORD_RESPONSE_OUTCOME;
@@ -66,6 +68,9 @@ public final class IncidentWriteAction extends ActionType<IncidentWriteResponse>
     public static final IncidentWriteAction PLAYBOOK_APPLY = new IncidentWriteAction(Grant.PLAYBOOK_APPLY);
 
     public static final IncidentWriteAction AI_FEEDBACK = new IncidentWriteAction(Grant.AI_FEEDBACK);
+
+    public static final IncidentWriteAction TUNING_PROPOSE = new IncidentWriteAction(Grant.TUNING_PROPOSE);
+    public static final IncidentWriteAction TUNING_REVIEW = new IncidentWriteAction(Grant.TUNING_REVIEW);
 
     private IncidentWriteAction(Grant grant) {
         super(grant.actionName(), IncidentWriteResponse::new);
