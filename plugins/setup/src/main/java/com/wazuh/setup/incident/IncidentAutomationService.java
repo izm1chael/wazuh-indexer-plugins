@@ -158,8 +158,7 @@ public final class IncidentAutomationService {
             repository.get(id, ActionListener.wrap(stored -> {
                 var source = stored.source();
                 if (source.get("pending_activity") != null) { counts.pending++; advance.run(); return; }
-                if ("closed".equals(source.get("status")) || IncidentAutomationPolicy.receipts(source).stream().anyMatch(row ->
-                        policy.id().toString().equals(row.get("policy_id")) && Integer.valueOf(policy.version()).equals(row.get("policy_version")))) {
+                if ("closed".equals(source.get("status")) || IncidentAutomationPolicy.alreadyRecorded(policy, source)) {
                     counts.skipped++; advance.run(); return;
                 }
                 int revision = (Integer) source.get("revision");
