@@ -458,6 +458,7 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
                 new ActionPlugin.ActionHandler<>(IncidentWriteAction.RESPONSE_REQUEST, TransportIncidentWriteAction.ResponseRequest.class),
                 new ActionPlugin.ActionHandler<>(IncidentWriteAction.RESPONSE_APPROVAL, TransportIncidentWriteAction.ResponseApproval.class),
                 new ActionPlugin.ActionHandler<>(IncidentWriteAction.RESPONSE_OUTCOME, TransportIncidentWriteAction.ResponseOutcome.class),
+                new ActionPlugin.ActionHandler<>(IncidentWriteAction.WORKFLOW_OPERATE, TransportIncidentWriteAction.WorkflowOperate.class),
                 new ActionPlugin.ActionHandler<>(IncidentWriteAction.PLAYBOOK_APPLY, TransportIncidentWriteAction.PlaybookApply.class),
                 new ActionPlugin.ActionHandler<>(IncidentWriteAction.AI_FEEDBACK, TransportIncidentWriteAction.AiFeedback.class),
                 new ActionPlugin.ActionHandler<>(IncidentWriteAction.TUNING_PROPOSE, TransportIncidentWriteAction.TuningPropose.class),
@@ -474,6 +475,6 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
                 PluginSettings.INCIDENTS_ENABLED, PluginSettings.ANALYTICS_ENABLED, PluginSettings.ANALYTICS_DEPLOYMENT,
                 PluginSettings.ANALYTICS_ACTOR, PluginSettings.ANALYTICS_POLICIES, PluginSettings.AUTOMATION_ENABLED,
                 PluginSettings.AUTOMATION_ACTOR, PluginSettings.AUTOMATION_POLICY, PluginSettings.SOAR_ENABLED, PluginSettings.SOAR_ACTOR,
-                PluginSettings.SOAR_MANAGER, PluginSettings.SOAR_AGENTS);
+                PluginSettings.SOAR_MANAGER, PluginSettings.SOAR_AGENTS, PluginSettings.WORKFLOWS_ENABLED);
     }
 }
