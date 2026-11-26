@@ -1,0 +1,217 @@
+/*
+ * Copyright (C) 2026, Wazuh Inc.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package com.wazuh.setup.incident;
+
+import org.opensearch.OpenSearchException;
+import org.opensearch.core.rest.RestStatus;
+
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
+
+/**
+ * Authoritative indexer-side mutation rules. No caller-supplied document, actor, timestamp,
+ * activity envelope or index name is accepted. The transport must gate each operation and
+ * resolve the principal before elevating privileges. This class performs no I/O.
+ */
+public final class IncidentMutation {
+    public enum Operation {
+        CREATE, ASSIGN_SELF, UNASSIGN, START_TRIAGE, ACTIVATE, CLOSE, REOPEN, EDIT
+    }
+
+    private static final Set<String> SEVERITY = Set.of("informational", "low", "medium", "high", "critical");
+    private static final Set<String> PRIORITY = Set.of("low", "medium", "high", "urgent");
+    private static final Set<String> TLP = Set.of("TLP:CLEAR", "TLP:GREEN", "TLP:AMBER", "TLP:AMBER+STRICT", "TLP:RED");
+    private static final Set<String> CLASSIFICATION = Set.of("true_positive", "benign_positive", "false_positive", "undetermined", "duplicate");
+    private static final DateTimeFormatter CLOCK = new DateTimeFormatterBuilder().appendInstant(3).toFormatter();
+
+    private IncidentMutation() {}
+
+    public static Map<String, Object> create(Map<String, Object> input, UUID id, String actor, Instant at) {
+        only(input, Set.of("title", "description", "severity", "priority", "tlp"));
+        requireActor(actor);
+        String now = CLOCK.format(at);
+        Map<String, Object> incident = new LinkedHashMap<>();
+        incident.put("id", id.toString());
+        incident.put("title", text(input.get("title"), 1024, "title", false));
+        incident.put("description", text(input.getOrDefault("description", ""), 32768, "description", true));
+        incident.put("status", "new");
+        incident.put("severity", choice(input.get("severity"), SEVERITY, "severity"));
+        incident.put("priority", choice(input.getOrDefault("priority", "medium"), PRIORITY, "priority"));
+        incident.put("tlp", choice(input.getOrDefault("tlp", "TLP:AMBER"), TLP, "tlp"));
+        incident.put("owner", null);
+        incident.put("created_by", actor);
+        incident.put("updated_by", actor);
+        incident.put("created_at", now);
+        incident.put("updated_at", now);
+        for (String field : Set.of("first_assigned_at", "triage_started_at", "activated_at", "closed_at", "first_closed_at", "reopened_at", "closure")) {
+            incident.put(field, null);
+        }
+        incident.put("revision", 1);
+        Map<String, Object> changes = new LinkedHashMap<>();
+        incident.forEach((key, value) -> changes.put(key, change(null, value)));
+        incident.put("pending_activity", activity(incident, "created", changes));
+        return incident;
+    }
+
+    public static Map<String, Object> apply(Map<String, Object> current, Operation operation,
+            Map<String, Object> input, int expectedRevision, String actor, Instant at) {
+        requireActor(actor);
+        if (current == null || !(current.get("revision") instanceof Integer revision) ||
+                revision < 1 || revision == Integer.MAX_VALUE || revision != expectedRevision) {
+            throw conflict("Incident revision changed or invalid");
+        }
+        if (current.get("pending_activity") != null) throw conflict("Pending activity must be delivered first");
+        if (at.isBefore(Instant.parse((String) current.get("updated_at")))) throw invalid("Incident clock moved backwards");
+        String now = CLOCK.format(at);
+        String status = (String) current.get("status");
+        Object owner = current.get("owner");
+        if ("closed".equals(status) && operation != Operation.REOPEN) throw conflict("Reopen before modifying");
+        Map<String, Object> next = new LinkedHashMap<>(current);
+        Map<String, Object> changes = new LinkedHashMap<>();
+        String kind;
+        switch (operation) {
+            case ASSIGN_SELF:
+                only(input, Set.of());
+                if (owner != null && !actor.equals(owner)) throw conflict("Incident already assigned");
+                if (actor.equals(owner)) throw conflict("Assignment did not change");
+                set(next, changes, "owner", actor);
+                if (current.get("first_assigned_at") == null) set(next, changes, "first_assigned_at", now);
+                kind = "assign";
+                break;
+            case UNASSIGN:
+                only(input, Set.of());
+                if (!"new".equals(status) || !actor.equals(owner)) throw conflict("Only an owner can return a new incident to the queue");
+                set(next, changes, "owner", null);
+                kind = "assign";
+                break;
+            case START_TRIAGE:
+                only(input, Set.of());
+                requireOwner(owner, actor);
+                if (!"new".equals(status)) throw conflict("Only new incidents can enter triage");
+                set(next, changes, "status", "triaging");
+                set(next, changes, "triage_started_at", now);
+                kind = "start_triage";
+                break;
+            case ACTIVATE:
+                only(input, Set.of());
+                requireOwner(owner, actor);
+                if (!"triaging".equals(status)) throw conflict("Start triage before activation");
+                set(next, changes, "status", "active");
+                set(next, changes, "activated_at", now);
+                kind = "activate";
+                break;
+            case CLOSE:
+                only(input, Set.of("classification", "reason"));
+                requireOwner(owner, actor);
+                if (!"triaging".equals(status) && !"active".equals(status)) throw conflict("Triage before closing");
+                set(next, changes, "status", "closed");
+                set(next, changes, "closed_at", now);
+                if (current.get("first_closed_at") == null) set(next, changes, "first_closed_at", now);
+                set(next, changes, "closure", Map.of("classification", choice(input.get("classification"), CLASSIFICATION, "classification"),
+                        "reason", text(input.get("reason"), 8192, "reason", false), "closed_by", actor));
+                kind = "close";
+                break;
+            case REOPEN:
+                only(input, Set.of("reason"));
+                requireOwner(owner, actor);
+                if (!"closed".equals(status)) throw conflict("Only closed incidents can reopen");
+                changes.put("reopen_reason", change(null, text(input.get("reason"), 8192, "reason", false)));
+                set(next, changes, "status", "active");
+                set(next, changes, "closed_at", null);
+                set(next, changes, "closure", null);
+                set(next, changes, "reopened_at", now);
+                kind = "reopen";
+                break;
+            case EDIT:
+                only(input, Set.of("title", "description", "severity", "priority", "tlp"));
+                requireOwner(owner, actor);
+                if (input.containsKey("title")) set(next, changes, "title", text(input.get("title"), 1024, "title", false));
+                if (input.containsKey("description")) set(next, changes, "description", text(input.get("description"), 32768, "description", true));
+                if (input.containsKey("severity")) set(next, changes, "severity", choice(input.get("severity"), SEVERITY, "severity"));
+                if (input.containsKey("priority")) set(next, changes, "priority", choice(input.get("priority"), PRIORITY, "priority"));
+                if (input.containsKey("tlp")) set(next, changes, "tlp", choice(input.get("tlp"), TLP, "tlp"));
+                if (changes.isEmpty()) throw conflict("Incident fields did not change");
+                kind = "edit";
+                break;
+            default:
+                throw invalid("Unsupported mutation");
+        }
+        next.put("updated_by", actor);
+        next.put("updated_at", now);
+        next.put("revision", revision + 1);
+        next.put("pending_activity", activity(next, kind, changes));
+        return next;
+    }
+
+    private static void only(Map<String, Object> input, Set<String> allowed) {
+        if (input == null || !allowed.containsAll(input.keySet())) throw invalid("Unsupported request field");
+    }
+
+    private static String text(Object value, int max, String field, boolean allowBlank) {
+        if (!(value instanceof String s) || s.length() > max || (!allowBlank && s.isBlank())) throw invalid("Invalid " + field);
+        return allowBlank ? s : s.trim();
+    }
+
+    private static String choice(Object value, Set<String> choices, String field) {
+        if (!(value instanceof String s) || !choices.contains(s)) throw invalid("Invalid " + field);
+        return s;
+    }
+
+    private static void requireActor(String actor) {
+        if (actor == null || actor.isBlank() || actor.length() > 1024 || "_shared".equals(actor)) {
+            throw new OpenSearchException("Authenticated incident principal required", RestStatus.UNAUTHORIZED);
+        }
+    }
+
+    private static void requireOwner(Object owner, String actor) {
+        if (!actor.equals(owner)) throw new OpenSearchException("Incident owner required", RestStatus.FORBIDDEN);
+    }
+
+    private static void set(Map<String, Object> next, Map<String, Object> changes, String field, Object value) {
+        if (!Objects.equals(next.get(field), value)) {
+            changes.put(field, change(next.get(field), value));
+            next.put(field, value);
+        }
+    }
+
+    private static Map<String, Object> change(Object before, Object after) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("before", before);
+        result.put("after", after);
+        return result;
+    }
+
+    private static Map<String, Object> activity(Map<String, Object> incident, String kind, Map<String, Object> changes) {
+        return Map.of("id", incident.get("id") + ":" + incident.get("revision"),
+                "incident_id", incident.get("id"), "revision", incident.get("revision"),
+                "kind", kind, "actor", incident.get("updated_by"), "at", incident.get("updated_at"), "changes", changes);
+    }
+
+    private static OpenSearchException invalid(String message) {
+        return new OpenSearchException(message, RestStatus.BAD_REQUEST);
+    }
+
+    private static OpenSearchException conflict(String message) {
+        return new OpenSearchException(message, RestStatus.CONFLICT);
+    }
+}
