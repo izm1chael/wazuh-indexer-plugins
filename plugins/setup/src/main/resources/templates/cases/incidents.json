@@ -186,6 +186,10 @@
           "index": false,
           "doc_values": false
         },
+        "handover": {
+          "type": "object",
+          "enabled": false
+        },
         "tuning_proposals": {
           "type": "object",
           "enabled": false
