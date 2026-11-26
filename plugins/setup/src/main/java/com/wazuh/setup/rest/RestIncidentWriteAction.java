@@ -61,6 +61,11 @@ public final class RestIncidentWriteAction extends BaseRestHandler {
             case "reopen" -> new Dispatch(IncidentWriteAction.REOPEN, Operation.REOPEN);
             case "attach-finding" -> new Dispatch(IncidentWriteAction.FINDINGS, Operation.ATTACH_FINDING);
             case "detach-finding" -> new Dispatch(IncidentWriteAction.FINDINGS, Operation.DETACH_FINDING);
+            case "set-tags" -> new Dispatch(IncidentWriteAction.COLLABORATE, Operation.SET_TAGS);
+            case "add-relation" -> new Dispatch(IncidentWriteAction.COLLABORATE, Operation.ADD_RELATION);
+            case "remove-relation" -> new Dispatch(IncidentWriteAction.COLLABORATE, Operation.REMOVE_RELATION);
+            case "register-evidence" -> new Dispatch(IncidentWriteAction.COLLABORATE, Operation.REGISTER_EVIDENCE);
+            case "withdraw-evidence" -> new Dispatch(IncidentWriteAction.COLLABORATE, Operation.WITHDRAW_EVIDENCE);
             case "add-note" -> new Dispatch(IncidentWriteAction.COLLABORATE, Operation.ADD_NOTE);
             case "create-task" -> new Dispatch(IncidentWriteAction.COLLABORATE, Operation.CREATE_TASK);
             case "complete-task" -> new Dispatch(IncidentWriteAction.COLLABORATE, Operation.COMPLETE_TASK);
