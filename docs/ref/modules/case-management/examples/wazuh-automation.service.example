@@ -1,0 +1,22 @@
+# Example only: do not install or start before disposable qualification.
+[Unit]
+Description=Wazuh approved incident automation sweep
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=wazuh-automation
+Group=wazuh-automation
+UMask=0077
+StateDirectory=wazuh-automation
+StateDirectoryMode=0700
+EnvironmentFile=/etc/wazuh-automation/credentials
+ExecStart=/usr/bin/python3 /opt/wazuh-siem/tools/incident_automation_runner.py --config /etc/wazuh-automation/runner.json --state /var/lib/wazuh-automation/cursor.sqlite
+TimeoutStartSec=600
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
