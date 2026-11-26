@@ -43,14 +43,14 @@ public final class IncidentReadService {
     private static final Set<String> PUBLIC_FIELDS = Set.of("id", "title", "description", "status", "severity",
             "priority", "tlp", "owner", "handover", "created_by", "updated_by", "created_at", "updated_at",
             "first_assigned_at", "triage_started_at", "activated_at", "closed_at", "first_closed_at",
-            "reopened_at", "closure", "revision", "finding_count");
+            "reopened_at", "closure", "revision", "finding_count", "tags");
 
     public record Query(String queue, String severity, String owner, String search, int limit, Long afterTime, String afterId) {
         public Query {
             if (queue == null || !QUEUES.contains(queue) || limit < 1 || limit > 100 ||
                     (severity != null && !SEVERITIES.contains(severity)) ||
                     (owner != null && (owner.isBlank() || owner.length() > 1024)) ||
-                    (search != null && search.length() > 1024) ||
+                    (search != null && (search.length() > 1024 || (search.startsWith("tag:") && !search.substring(4).matches("[a-z0-9][a-z0-9_-]{0,63}")))) ||
                     ((afterTime == null) != (afterId == null))) throw invalid("Invalid incident queue query");
             if (afterId != null) canonicalId(afterId);
         }
@@ -117,7 +117,8 @@ public final class IncidentReadService {
         if (query.owner() != null) filter.filter(QueryBuilders.termQuery("owner", query.owner()));
         if (query.severity() != null) filter.filter(QueryBuilders.termQuery("severity", query.severity()));
         if (query.search() != null && !query.search().isBlank()) {
-            filter.must(QueryBuilders.multiMatchQuery(query.search(), "title", "description", "id"));
+            if (query.search().startsWith("tag:")) filter.filter(QueryBuilders.termQuery("tags", query.search().substring(4)));
+            else filter.must(QueryBuilders.multiMatchQuery(query.search(), "title", "description", "id"));
         }
         SearchSourceBuilder source = new SearchSourceBuilder().query(filter).size(query.limit() + 1)
                 .trackTotalHits(false).sort("updated_at", SortOrder.DESC).sort("id", SortOrder.ASC)
@@ -128,7 +129,8 @@ public final class IncidentReadService {
 
     static Map<String, Object> project(Map<String, Object> source) {
         Map<String, Object> result = new LinkedHashMap<>();
-        for (String field : PUBLIC_FIELDS) if (!"handover".equals(field) && source.containsKey(field)) result.put(field, source.get(field));
+        for (String field : PUBLIC_FIELDS) if (!"handover".equals(field) && !"tags".equals(field) && source.containsKey(field)) result.put(field, source.get(field));
+        if (source.containsKey("tags")) result.put("tags", IncidentEvidenceRegister.storedTags(source));
         Object value = source.get("handover");
         if (value == null) {
             result.put("handover", null);
