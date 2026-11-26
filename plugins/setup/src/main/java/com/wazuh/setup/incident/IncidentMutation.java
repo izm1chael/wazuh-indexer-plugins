@@ -76,6 +76,7 @@ public final class IncidentMutation {
         incident.put("evidence_register", List.of());
         incident.put("tasks", List.of());
         incident.put("playbook_runs", List.of());
+        incident.put("automation_runs", List.of());
         incident.put("ai_feedback_ids", List.of());
         incident.put("tuning_proposals", List.of());
         incident.put("response_requests", List.of());
@@ -287,6 +288,67 @@ public final class IncidentMutation {
         next.put("updated_at", now);
         next.put("revision", revision + 1);
         next.put("pending_activity", activity(next, kind, changes));
+        return next;
+    }
+
+    /** Internal automation only: never exposed as an ordinary IncidentMutation.Operation. */
+    static Map<String, Object> automate(Map<String, Object> current, Map<String, Object> event,
+            IncidentAutomationPolicy.Policy policy, String actor, Instant at) {
+        requireActor(actor);
+        var rule = IncidentAutomationPolicy.match(policy, current, event);
+        if (rule == null) throw conflict("Automation trigger no longer eligible");
+        int revision = (Integer) current.get("revision");
+        if (revision == Integer.MAX_VALUE || at.isBefore(Instant.parse((String) current.get("updated_at"))))
+            throw conflict("Invalid automation revision or clock");
+        var history = IncidentAutomationPolicy.receipts(current);
+        if (history.size() >= IncidentAutomationPolicy.MAX_RECEIPTS) throw conflict("Automation history capacity reached");
+        var next = new LinkedHashMap<>(current);
+        var changes = new LinkedHashMap<String, Object>();
+        var actions = rule.actions();
+        String now = CLOCK.format(at);
+        if (actions.containsKey("assign_to") && "new".equals(current.get("status")) && current.get("owner") == null &&
+                current.get("handover") == null) {
+            set(next, changes, "owner", actions.get("assign_to"));
+            if (current.get("first_assigned_at") == null) set(next, changes, "first_assigned_at", now);
+        }
+        for (String field : List.of("severity", "priority")) {
+            var order = field.equals("severity") ? IncidentAutomationPolicy.SEVERITY : IncidentAutomationPolicy.PRIORITY;
+            if (order.indexOf(current.get(field)) < 0) throw conflict("Invalid incident classification");
+            if (actions.containsKey("raise_" + field) && order.indexOf(actions.get("raise_" + field)) > order.indexOf(current.get(field)))
+                set(next, changes, field, actions.get("raise_" + field));
+        }
+        if (actions.containsKey("add_tags")) {
+            var tags = new java.util.TreeSet<>(IncidentEvidenceRegister.storedTags(current));
+            @SuppressWarnings("unchecked") var additional = (List<String>) actions.get("add_tags");
+            tags.addAll(additional);
+            set(next, changes, "tags", IncidentEvidenceRegister.tags(new ArrayList<>(tags)));
+        }
+        if (actions.containsKey("create_task")) {
+            IncidentInvestigationService.projectTasks(next);
+            IncidentTasks.apply(next, changes, Operation.CREATE_TASK, Map.of("title", actions.get("create_task")), actor, now, revision + 1);
+        }
+        if (actions.containsKey("apply_playbook")) {
+            String template = (String) actions.get("apply_playbook");
+            var candidate = IncidentPlaybooks.preview(next).stream().filter(row -> template.equals(row.get("template_id")) &&
+                    Integer.valueOf(1).equals(row.get("version"))).findFirst().orElseThrow(() -> conflict("Playbook unavailable"));
+            if ("available".equals(candidate.get("state"))) {
+                IncidentPlaybooks.apply(next, changes, Map.of("template_id", template, "version", 1), actor, now, revision + 1);
+            } else if (!"already_applied".equals(candidate.get("state"))) throw conflict("Automation playbook not eligible or at capacity");
+        }
+        var receipt = Map.<String, Object>of("policy_id", policy.id().toString(), "policy_version", policy.version(),
+                "policy_hash", policy.fingerprint(), "rule_id", rule.id(), "trigger_revision", revision,
+                "applied_revision", revision + 1, "actor", actor, "at", now, "changed_fields", changes.size());
+        history.add(receipt);
+        next.put("automation_runs", history);
+        changes.put("automation_receipt", change(null, receipt));
+        changes.put("automation_policy_id", change(null, policy.id().toString()));
+        changes.put("automation_policy_version", change(null, policy.version()));
+        changes.put("automation_rule_id", change(null, rule.id()));
+        changes.put("automation_trigger_revision", change(null, revision));
+        changes.put("automation_changed_fields", change(null, receipt.get("changed_fields")));
+        next.put("updated_by", actor); next.put("updated_at", now); next.put("revision", revision + 1);
+        next.put("pending_activity", activity(next, "automation_applied", changes));
+        IncidentAutomationPolicy.receipts(next);
         return next;
     }
 
