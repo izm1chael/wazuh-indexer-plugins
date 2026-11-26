@@ -59,6 +59,20 @@ public class IncidentResponsesTests extends OpenSearchTestCase {
         assertEquals("requested", IncidentResponses.project(requested).get(0).get("state"));
     }
 
+    public void testStoredStateRejectsDuplicateIdentityAndForgedSelfApproval() {
+        var requested = requested();
+        var row = new LinkedHashMap<>(IncidentResponses.project(requested).get(0));
+        var corrupted = new LinkedHashMap<>(requested);
+        corrupted.put("response_requests", java.util.List.of(row, row));
+        expectThrows(IllegalStateException.class, () -> IncidentResponses.project(corrupted));
+        row.put("state", "approved");
+        row.put("decided_by", "analyst");
+        row.put("decided_at", row.get("requested_at"));
+        row.put("decision_reason", "Forged");
+        corrupted.put("response_requests", java.util.List.of(row));
+        expectThrows(IllegalStateException.class, () -> IncidentResponses.project(corrupted));
+    }
+
     public void testNoCommandsOrForgedExecutionAndClosureGuard() {
         var source = triaging();
         var forged = new LinkedHashMap<>(INTENT); forged.put("command", "arbitrary");

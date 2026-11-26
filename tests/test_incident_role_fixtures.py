@@ -16,6 +16,14 @@ class IncidentRoleFixturesTest(unittest.TestCase):
         self.assertEqual(set(roles["incident_analyst"]["cluster_permissions"]),
                          {prefix + name for name in ("read", "create", "assign", "update", "close", "reopen", "findings", "collaborate")})
         self.assertEqual(roles["incident_no_access"]["cluster_permissions"], [])
+        for name, grants in {
+            "reader": ("response_read",),
+            "requester": ("response_read", "response_request"),
+            "approver": ("response_read", "response_approval"),
+            "reporter": ("response_read", "response_outcome"),
+        }.items():
+            self.assertEqual(set(roles["incident_response_" + name]["cluster_permissions"]),
+                             {prefix + grant for grant in grants})
         for role in roles.values():
             self.assertEqual(role["index_permissions"], [])
             self.assertEqual(role["tenant_permissions"], [])

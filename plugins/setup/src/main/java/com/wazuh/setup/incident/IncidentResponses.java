@@ -39,6 +39,7 @@ final class IncidentResponses {
             throw new IllegalStateException("Invalid response state");
         }
         List<Map<String, Object>> result = new ArrayList<>();
+        var seen = new java.util.HashSet<String>();
         for (Object row : rows) {
             if (!(row instanceof Map<?, ?> value) || !TYPES.contains(value.get("type")) ||
                     !STATES.contains(value.get("state")) || !Boolean.FALSE.equals(value.get("execution_verified"))) {
@@ -52,9 +53,52 @@ final class IncidentResponses {
                 }
                 item.put(field, v);
             }
+            validateStored(source, item, seen);
             result.add(item);
         }
         return result;
+    }
+
+    private static void validateStored(Map<String, Object> source, Map<String, Object> row, Set<String> seen) {
+        if (!(source.get("id") instanceof String incidentId) || !(source.get("revision") instanceof Number revision) ||
+                !(row.get("id") instanceof String id) || !id.startsWith(incidentId + ":") || !seen.add(id)) {
+            throw new IllegalStateException("Invalid stored response identity");
+        }
+        try {
+            String suffix = id.substring(incidentId.length() + 1);
+            int requestRevision = Integer.parseInt(suffix);
+            if (requestRevision < 1 || requestRevision > revision.longValue() || !Integer.toString(requestRevision).equals(suffix)) {
+                throw new IllegalStateException("Invalid response revision");
+            }
+            String requester = text(row.get("requested_by"), 1024);
+            java.time.Instant requested = java.time.Instant.parse(text(row.get("requested_at"), 64));
+            text(row.get("scope"), 512); text(row.get("reason"), 2048);
+            boolean noDecision = row.get("decided_by") == null && row.get("decided_at") == null && row.get("decision_reason") == null;
+            java.time.Instant decided = null;
+            if (!noDecision) {
+                String reviewer = text(row.get("decided_by"), 1024);
+                decided = java.time.Instant.parse(text(row.get("decided_at"), 64));
+                text(row.get("decision_reason"), 2048);
+                if (requester.equals(reviewer) || decided.isBefore(requested)) throw new IllegalStateException("Invalid stored decision");
+            }
+            boolean noFinal = row.get("finalized_by") == null && row.get("finalized_at") == null && row.get("final_reason") == null;
+            if (!noFinal) {
+                text(row.get("finalized_by"), 1024);
+                var finalized = java.time.Instant.parse(text(row.get("finalized_at"), 64));
+                text(row.get("final_reason"), 2048);
+                if (finalized.isBefore(decided == null ? requested : decided)) throw new IllegalStateException("Invalid stored finalization");
+            }
+            boolean valid = switch ((String) row.get("state")) {
+                case "requested" -> noDecision && noFinal;
+                case "approved", "rejected" -> !noDecision && noFinal;
+                case "cancelled" -> !noFinal;
+                case "reported_completed", "reported_failed", "reported_not_performed" -> !noDecision && !noFinal;
+                default -> false;
+            };
+            if (!valid) throw new IllegalStateException("Invalid stored response lifecycle");
+        } catch (RuntimeException e) {
+            throw new IllegalStateException("Invalid stored response record", e);
+        }
     }
 
     static void requireNoOutstanding(Map<String, Object> source) {
