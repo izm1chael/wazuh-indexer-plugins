@@ -195,6 +195,9 @@
             "offered_at": { "type": "date", "format": "strict_date_time", "index": false, "doc_values": false }
           }
         },
+        "tags": { "type": "keyword", "ignore_above": 64 },
+        "incident_relations": { "type": "object", "enabled": false },
+        "evidence_register": { "type": "object", "enabled": false },
         "tuning_proposals": {
           "type": "object",
           "enabled": false
