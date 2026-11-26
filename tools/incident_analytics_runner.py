@@ -131,7 +131,7 @@ def run_id(deployment, payload):
 
 
 def validate_receipt(receipt, config, payload):
-    if not isinstance(receipt, dict) or any(receipt.get(key) != val for key, val in payload.items()) or receipt.get("run_id") != run_id(config["deployment_id"], payload):
+    if not isinstance(receipt, dict) or type(receipt.get("policy_version")) is not int or any(receipt.get(key) != val for key, val in payload.items()) or receipt.get("run_id") != run_id(config["deployment_id"], payload):
         raise ValueError("Mismatched analytics receipt")
     base = set(payload) | {"run_id", "state"}
     state = receipt.get("state")
@@ -144,8 +144,13 @@ def validate_receipt(receipt, config, payload):
     findings, groups, below = (receipt.get(key) for key in ("finding_count", "group_count", "below_threshold"))
     if any(type(x) is not int for x in (findings, groups, below)) or not 0 <= findings <= 100 or not 0 <= groups <= 20 or not 0 <= below <= findings or groups * 2 > findings - below or (groups == 0) != (findings == below):
         raise ValueError("Receipt count mismatch")
-    if not isinstance(receipt.get("reserved_at"), str) or (state == "reserved") != (receipt.get("completed_at") is None) or (state == "completed" and not isinstance(receipt.get("completed_at"), str)):
-        raise ValueError("Invalid receipt timestamps")
+    def receipt_time(value):
+        if not isinstance(value, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?Z", value):
+            raise ValueError("Invalid receipt timestamp")
+        return dt.datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+    reserved = receipt_time(receipt.get("reserved_at"))
+    if reserved < epoch(payload["until"]) + GRACE or (state == "reserved" and receipt.get("completed_at") is not None) or (state == "completed" and receipt_time(receipt.get("completed_at")) < reserved):
+        raise ValueError("Invalid receipt chronology")
     return state
 
 
@@ -154,6 +159,7 @@ def open_state(path):
     db = sqlite3.connect(path, timeout=5)
     db.execute("PRAGMA synchronous=FULL")
     db.execute("CREATE TABLE IF NOT EXISTS cursors (deployment TEXT, policy TEXT, version INTEGER, minutes INTEGER, first_start INTEGER, next_start INTEGER, PRIMARY KEY(deployment,policy,version))")
+    db.execute("CREATE TABLE IF NOT EXISTS scheduler_position (deployment TEXT PRIMARY KEY, position INTEGER NOT NULL)")
     db.commit()
     return db
 
@@ -164,9 +170,17 @@ def run_due(config, db, request, now, budget=MAX_WINDOWS, emit=print):
         raise ValueError("Invalid run budget")
     processed = 0
     failed = False
-    for policy in config["policies"]:
+    policies = config["policies"]
+    position = db.execute("SELECT position FROM scheduler_position WHERE deployment=?", (config["deployment_id"],)).fetchone()
+    start_position = (position[0] if position else 0) % len(policies)
+    for offset in range(len(policies)):
         if processed >= budget:
             break
+        index = (start_position + offset) % len(policies)
+        policy = policies[index]
+        db.execute("INSERT INTO scheduler_position VALUES (?,?) ON CONFLICT(deployment) DO UPDATE SET position=excluded.position",
+                   (config["deployment_id"], (index + 1) % len(policies)))
+        db.commit()
         pid, version, minutes = policy["policy_id"], policy["policy_version"], policy["window_minutes"]
         start = epoch(policy["first_window_start"])
         key = (config["deployment_id"], pid, version)
@@ -181,7 +195,7 @@ def run_due(config, db, request, now, budget=MAX_WINDOWS, emit=print):
                 failed = True
                 continue
             cursor = row[2]
-        while cursor + minutes * 60 <= now - GRACE and processed < budget:
+        if cursor + minutes * 60 <= now - GRACE and processed < budget:
             until = cursor + minutes * 60
             payload = {"policy_id": pid, "policy_version": version, "from": utc(cursor), "until": utc(until)}
             processed += 1
@@ -200,13 +214,11 @@ def run_due(config, db, request, now, budget=MAX_WINDOWS, emit=print):
                     raise RuntimeError("Cursor conflict")
                 db.commit()
                 emit("COMPLETED " + pid + ":" + str(version) + " " + payload["from"])
-                cursor = until
             except (RuntimeError, ValueError, sqlite3.Error) as exc:
                 db.rollback()
                 # Do not emit response bodies, credentials, source values or arbitrary exception text.
                 emit("BLOCKED " + pid + ":" + str(version) + " " + payload["from"] + " (" + type(exc).__name__ + ")")
                 failed = True
-                break
     return 1 if failed else 0
 
 
