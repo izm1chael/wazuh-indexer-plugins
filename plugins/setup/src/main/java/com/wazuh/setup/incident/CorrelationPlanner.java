@@ -102,7 +102,7 @@ public final class CorrelationPlanner {
     /** Reject arrays, mixed representations and non-scalar identity values. */
     private static Object raw(Map<String, Object> source, String path) {
         if (source == null) return null;
-        String[] parts = path.split("\\\\.");
+        String[] parts = path.split("\\.");
         Object node = source;
         for (int n = 0; n < parts.length; n++) {
             if (!(node instanceof Map<?, ?> map)) return node == null ? null : INVALID;
