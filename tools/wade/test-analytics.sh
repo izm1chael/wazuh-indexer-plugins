@@ -7,3 +7,4 @@ javac --release 17 -Xlint:all -Werror -d "$out" "$here"/src/com/wazuh/wade/*.jav
 java -cp "$out" com.wazuh.wade.DetectionKernelTests
 java -cp "$out" com.wazuh.wade.AnalyticsTests
 java -cp "$out" com.wazuh.wade.ControlTests
+java -cp "$out" com.wazuh.wade.GovernanceTests
