@@ -46,15 +46,15 @@ public final class IndicatorCatalogStore {
     }
 
     public void read(ActionListener<Map<String, Object>> listener) {
-        get(ActionListener.wrap(snapshot -> listener.onResponse(IndicatorCatalog.project(snapshot.source(), clock.instant())), listener::onFailure));
+        get(ActionListener.wrap(snapshot -> listener.onResponse(IndicatorCatalog.project(snapshot.source(), clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MILLIS))), listener::onFailure));
     }
 
     public void add(int expected, List<?> entries, String actor, ActionListener<Map<String, Object>> listener) {
-        mutate(expected, source -> IndicatorCatalog.add(source, expected, entries, actor, clock.instant()), entries.size(), listener);
+        mutate(expected, source -> IndicatorCatalog.add(source, expected, entries, actor, clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MILLIS)), entries.size(), listener);
     }
 
     public void revoke(int expected, String id, String reason, String actor, ActionListener<Map<String, Object>> listener) {
-        mutate(expected, source -> IndicatorCatalog.revoke(source, expected, id, reason, actor, clock.instant()), 1, listener);
+        mutate(expected, source -> IndicatorCatalog.revoke(source, expected, id, reason, actor, clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MILLIS)), 1, listener);
     }
 
     private void mutate(int expected, java.util.function.Function<Map<String, Object>, Map<String, Object>> mutation,
