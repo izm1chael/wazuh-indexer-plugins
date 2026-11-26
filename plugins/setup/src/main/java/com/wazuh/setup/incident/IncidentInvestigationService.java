@@ -206,9 +206,11 @@ public final class IncidentInvestigationService {
             }
             int end = Math.min(offset + limit, links.size());
             List<Map<String, Object>> visible = new ArrayList<>();
-            check(links, offset, end, caller, actor, visible, ActionListener.wrap(ignored -> {
+            List<Map<String, Object>> observations = new ArrayList<>();
+            check(links, offset, end, caller, actor, visible, observations, ActionListener.wrap(ignored -> {
                 Map<String, Object> result = new LinkedHashMap<>();
                 result.put("findings", visible);
+                result.put("observations", observations);
                 result.put("revision", revision);
                 result.put("unavailable_count", end - offset - visible.size());
                 if (end < links.size()) result.put("next_offset", end);
@@ -219,7 +221,7 @@ public final class IncidentInvestigationService {
 
     @SuppressWarnings("unchecked")
     private void check(List<?> links, int position, int end, Supplier<ThreadContext.StoredContext> caller,
-            String actor, List<Map<String, Object>> visible, ActionListener<Void> listener) {
+            String actor, List<Map<String, Object>> visible, List<Map<String, Object>> observations, ActionListener<Void> listener) {
         if (position == end) {
             listener.onResponse(null);
             return;
@@ -230,13 +232,14 @@ public final class IncidentInvestigationService {
                 return;
             }
             FindingReference reference = FindingReference.parse((Map<String, Object>) links.get(position));
-            access.requireVisible(reference, ActionListener.wrap(ok -> {
+            access.inspect(reference, ActionListener.wrap(observation -> {
                 visible.add(reference.toMap());
-                check(links, position + 1, end, caller, actor, visible, listener);
+                observations.add(observation);
+                check(links, position + 1, end, caller, actor, visible, observations, listener);
             }, error -> {
                 RestStatus status = ExceptionsHelper.status(error);
                 if (status == RestStatus.FORBIDDEN || status == RestStatus.NOT_FOUND) {
-                    check(links, position + 1, end, caller, actor, visible, listener);
+                    check(links, position + 1, end, caller, actor, visible, observations, listener);
                 } else {
                     listener.onFailure(error);
                 }

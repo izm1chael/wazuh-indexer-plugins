@@ -22,6 +22,7 @@ import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.rest.RestStatus;
 import org.opensearch.transport.client.Client;
 import java.time.Clock;
+import java.util.Map;
 
 /**
  * Verify visibility under the ORIGINAL caller's security context. No stashing or privilege
@@ -42,6 +43,18 @@ public final class FindingAccess {
             }
             listener.onResponse(FindingCaptureReceipt.create(reference, response.getSourceAsMap(),
                     clock.instant(), actor, response.getSeqNo(), response.getPrimaryTerm()));
+        }, listener::onFailure));
+    }
+
+    /** Read only under the caller context, returning an allowlisted live projection. */
+    void inspect(FindingReference reference, ActionListener<Map<String, Object>> listener) {
+        client.get(new GetRequest(reference.index(), reference.documentId()), ActionListener.wrap(response -> {
+            if (!response.isExists() || !reference.index().equals(response.getIndex()) ||
+                    !reference.documentId().equals(response.getId())) {
+                listener.onFailure(new OpenSearchStatusException("Finding not available", RestStatus.NOT_FOUND));
+                return;
+            }
+            listener.onResponse(FindingIntelligence.project(reference, response.getSourceAsMap()));
         }, listener::onFailure));
     }
 
