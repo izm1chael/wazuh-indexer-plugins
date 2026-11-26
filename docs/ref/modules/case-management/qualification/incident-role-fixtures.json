@@ -53,5 +53,12 @@
     ],
     "index_permissions": [],
     "tenant_permissions": []
+  },
+  "incident_metrics_reader": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/metrics_read"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
   }
 }

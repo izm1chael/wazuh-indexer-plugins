@@ -53,6 +53,10 @@ import java.util.function.Supplier;
 
 import com.wazuh.setup.action.GetAiAssistantSettingsAction;
 import com.wazuh.setup.action.IncidentReadAction;
+import com.wazuh.setup.action.IncidentMetricsAction;
+import com.wazuh.setup.incident.IncidentMetricsService;
+import com.wazuh.setup.rest.RestIncidentMetricsAction;
+import com.wazuh.setup.transport.TransportIncidentMetricsAction;
 import com.wazuh.setup.action.IncidentCorrelationAction;
 import com.wazuh.setup.action.CorrelationPolicyAction;
 import com.wazuh.setup.incident.CorrelationPolicyStore;
@@ -266,7 +270,7 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
         IncidentInvestigationService investigation = new IncidentInvestigationService(client, threadPool, incidents, new FindingAccess(client));
         IncidentWriteService incidentWriter = new IncidentWriteService(incidents, new FindingAccess(client),
                 Clock.systemUTC(), error -> log.warn("Incident activity delivery pending", error));
-        return List.of(this.settingsIndex, this.settingsAdminIndex, this.sessionsIndex, incidentReader, incidentWriter, investigation, new CorrelationPreviewService(client), new CorrelationPolicyStore(client, threadPool, Clock.systemUTC()));
+        return List.of(this.settingsIndex, this.settingsAdminIndex, this.sessionsIndex, incidentReader, incidentWriter, investigation, new CorrelationPreviewService(client), new CorrelationPolicyStore(client, threadPool, Clock.systemUTC()), new IncidentMetricsService(client, threadPool, Clock.systemUTC()));
     }
 
     @Override
@@ -372,6 +376,7 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
                 new RestDeleteAiAssistantSessionAction()));
         if (PluginSettings.INCIDENTS_ENABLED.get(settings)) {
             handlers.add(new RestIncidentReadAction());
+            handlers.add(new RestIncidentMetricsAction());
             handlers.add(new RestIncidentWriteAction());
             handlers.add(new RestIncidentCorrelationAction());
             handlers.add(new RestCorrelationPolicyAction());
@@ -393,6 +398,7 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
                 new ActionPlugin.ActionHandler<>(CorrelationPolicyAction.READ, TransportCorrelationPolicyAction.Read.class),
                 new ActionPlugin.ActionHandler<>(CorrelationPolicyAction.SAVE, TransportCorrelationPolicyAction.Save.class),
                 new ActionPlugin.ActionHandler<>(IncidentCorrelationAction.INSTANCE, TransportIncidentCorrelationAction.class),
+                new ActionPlugin.ActionHandler<>(IncidentMetricsAction.INSTANCE, TransportIncidentMetricsAction.class),
                 new ActionPlugin.ActionHandler<>(IncidentReadAction.INSTANCE, TransportIncidentReadAction.class),
                 new ActionPlugin.ActionHandler<>(IncidentWriteAction.CREATE, TransportIncidentWriteAction.Create.class),
                 new ActionPlugin.ActionHandler<>(IncidentWriteAction.ASSIGN, TransportIncidentWriteAction.Assign.class),
