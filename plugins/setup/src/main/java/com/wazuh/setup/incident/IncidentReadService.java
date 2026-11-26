@@ -41,7 +41,7 @@ public final class IncidentReadService {
     private static final Set<String> QUEUES = Set.of("open", "new", "triaging", "active", "closed", "unassigned", "all");
     private static final Set<String> SEVERITIES = Set.of("informational", "low", "medium", "high", "critical");
     private static final Set<String> PUBLIC_FIELDS = Set.of("id", "title", "description", "status", "severity",
-            "priority", "tlp", "owner", "created_by", "updated_by", "created_at", "updated_at",
+            "priority", "tlp", "owner", "handover", "created_by", "updated_by", "created_at", "updated_at",
             "first_assigned_at", "triage_started_at", "activated_at", "closed_at", "first_closed_at",
             "reopened_at", "closure", "revision", "finding_count");
 
