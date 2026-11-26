@@ -205,5 +205,12 @@
     ],
     "index_permissions": [],
     "tenant_permissions": []
+  },
+  "incident_behaviour_reader": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/behaviour_read"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
   }
 }
