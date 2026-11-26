@@ -63,6 +63,10 @@ import com.wazuh.setup.transport.TransportIncidentMetricsAction;
 import com.wazuh.setup.action.IncidentCorrelationAction;
 import com.wazuh.setup.action.IncidentHuntAction;
 import com.wazuh.setup.action.IncidentEntityInvestigationAction;
+import com.wazuh.setup.action.EntityBehaviourAction;
+import com.wazuh.setup.incident.EntityBehaviourService;
+import com.wazuh.setup.rest.RestEntityBehaviourAction;
+import com.wazuh.setup.transport.TransportEntityBehaviourAction;
 import com.wazuh.setup.incident.IncidentEntityInvestigationService;
 import com.wazuh.setup.rest.RestIncidentEntityInvestigationAction;
 import com.wazuh.setup.transport.TransportIncidentEntityInvestigationAction;
@@ -307,7 +311,7 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
         IncidentAutomationStore automationStore = new IncidentAutomationStore(client, threadPool, Clock.systemUTC());
         IncidentAutomationService automation = new IncidentAutomationService(client, threadPool, incidents, automationStore, Clock.systemUTC());
         IncidentHuntService hunt = new IncidentHuntService(client);
-        return List.of(new IncidentEntityInvestigationService(client, threadPool, hunt), new IncidentSoarService(incidents, Clock.systemUTC()), automationStore, automation, this.settingsIndex, this.settingsAdminIndex, this.sessionsIndex, incidentReader, incidentWriter, investigation, new CorrelationPreviewService(client), new AnalyticsExecutionService(client, threadPool, Clock.systemUTC(), incidents), hunt, new CorrelationPolicyStore(client, threadPool, Clock.systemUTC()), new IndicatorCatalogStore(client, threadPool, Clock.systemUTC()), new IncidentMetricsService(client, threadPool, Clock.systemUTC()));
+        return List.of(new EntityBehaviourService(threadPool, hunt, Clock.systemUTC()), new IncidentEntityInvestigationService(client, threadPool, hunt), new IncidentSoarService(incidents, Clock.systemUTC()), automationStore, automation, this.settingsIndex, this.settingsAdminIndex, this.sessionsIndex, incidentReader, incidentWriter, investigation, new CorrelationPreviewService(client), new AnalyticsExecutionService(client, threadPool, Clock.systemUTC(), incidents), hunt, new CorrelationPolicyStore(client, threadPool, Clock.systemUTC()), new IndicatorCatalogStore(client, threadPool, Clock.systemUTC()), new IncidentMetricsService(client, threadPool, Clock.systemUTC()));
     }
 
     @Override
@@ -419,6 +423,7 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
             handlers.add(new RestIncidentCorrelationAction());
             handlers.add(new RestIncidentHuntAction());
             handlers.add(new RestIncidentEntityInvestigationAction());
+            handlers.add(new RestEntityBehaviourAction());
             handlers.add(new RestCorrelationPolicyAction());
             handlers.add(new RestIncidentAutomationAction());
             if (PluginSettings.SOAR_ENABLED.get(settings)) handlers.add(new RestIncidentSoarAction());
@@ -452,6 +457,7 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
                 new ActionPlugin.ActionHandler<>(IncidentCorrelationAction.INSTANCE, TransportIncidentCorrelationAction.class),
                 new ActionPlugin.ActionHandler<>(IncidentHuntAction.INSTANCE, TransportIncidentHuntAction.class),
                 new ActionPlugin.ActionHandler<>(IncidentEntityInvestigationAction.INSTANCE, TransportIncidentEntityInvestigationAction.class),
+                new ActionPlugin.ActionHandler<>(EntityBehaviourAction.INSTANCE, TransportEntityBehaviourAction.class),
                 new ActionPlugin.ActionHandler<>(IncidentMetricsAction.INSTANCE, TransportIncidentMetricsAction.class),
                 new ActionPlugin.ActionHandler<>(IncidentResponseReadAction.INSTANCE, TransportIncidentResponseReadAction.class),
                 new ActionPlugin.ActionHandler<>(IncidentReadAction.INSTANCE, TransportIncidentReadAction.class),
