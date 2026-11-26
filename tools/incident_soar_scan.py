@@ -46,12 +46,13 @@ def config(raw):
     if ":" in cfg["indexer_user"] or ":" in cfg["manager_user"]:
         raise ValueError("Invalid account")
     agents = cfg["agents"]
-    if not isinstance(agents, list) or not 1 <= len(agents) <= 50:
+    if not isinstance(agents, dict) or not 1 <= len(agents) <= 50:
         raise ValueError("Agent allowlist required")
-    for agent in agents:
+    for agent, enrolled in agents.items():
         agent_id(agent)
-    if len(set(agents)) != len(agents):
-        raise ValueError("Duplicate agent")
+        if not isinstance(enrolled, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", enrolled):
+            raise ValueError("Exact agent enrollment time required")
+        dt.datetime.fromisoformat(enrolled.replace("Z", "+00:00"))
     return cfg
 
 
@@ -130,6 +131,19 @@ def accepted(body, agent):
     return isinstance(data, dict) and data.get("affected_items") == [agent] and type(data.get("total_affected_items")) is int and data["total_affected_items"] == 1 and type(data.get("total_failed_items")) is int and data["total_failed_items"] == 0 and data.get("failed_items") == []
 
 
+def preflight(body, cfg, agent):
+    if not isinstance(body, dict) or type(body.get("error")) is not int or body["error"] != 0:
+        return False
+    data = body.get("data")
+    if not isinstance(data, dict) or type(data.get("total_affected_items")) is not int or data["total_affected_items"] != 1 or type(data.get("total_failed_items")) is not int or data["total_failed_items"] != 0 or data.get("failed_items") != []:
+        return False
+    rows = data.get("affected_items")
+    if not isinstance(rows, list) or len(rows) != 1 or not isinstance(rows[0], dict):
+        return False
+    row = rows[0]
+    return row.get("id") == agent and row.get("dateAdd") == cfg["agents"][agent] and row.get("status") == "active" and isinstance(row.get("version"), str) and bool(re.fullmatch(r"v5\.\d+\.\d+(?:[-+][a-zA-Z0-9.-]+)?", row["version"]))
+
+
 def execute(cfg, incident, response_id, revision, agent, indexer, manager, now=lambda: dt.datetime.now(dt.timezone.utc), emit=print):
     """The caller supplies authenticated fixed-origin transports. Never repeat external dispatch."""
     payload = request_body(cfg, incident, response_id, revision, agent)
@@ -140,10 +154,13 @@ def execute(cfg, incident, response_id, revision, agent, indexer, manager, now=l
         return 1
     outcome = "dispatch_unknown"
     try:
-        # Recheck age immediately before the sole network request.
+        # Confirm active agent identity and operator-pinned enrollment before the sole write.
+        lookup = "/agents?" + urllib.parse.urlencode({"agents_list": agent, "select": "id,dateAdd,status,version", "limit": 1})
+        if not preflight(manager("GET", lookup), cfg, agent):
+            raise ValueError("Agent identity or eligibility unavailable")
         receipt(claim, cfg, payload, now())
         path = "/agents/scan/vulnerability?" + urllib.parse.urlencode({"agents_list": agent_id(agent)})
-        if accepted(manager(path), agent):
+        if accepted(manager("PUT", path), agent):
             outcome = "manager_accepted"
     except Exception:
         pass
@@ -180,7 +197,7 @@ def main():
         token = manager_token(manager("POST", "/security/user/authenticate", manager_auth))
         return execute(cfg, args.incident, args.response, args.revision, args.agent,
                        lambda payload: indexer("POST", DISPATCH, indexer_auth, payload),
-                       lambda path: manager("PUT", path, "Bearer " + token))
+                       lambda method, path: manager(method, path, "Bearer " + token))
     except Exception:
         print("Configuration or authentication unavailable. No dispatch attempted by setup.", file=sys.stderr)
         return 1
