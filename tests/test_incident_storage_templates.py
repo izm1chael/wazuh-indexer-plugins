@@ -36,6 +36,10 @@ class IncidentTemplatesTest(unittest.TestCase):
         self.assertFalse(offer["properties"]["offered_by"]["index"])
         self.assertFalse(offer["properties"]["offered_at"]["index"])
 
+    def test_hunt_bookmark_storage_boundary(self):
+        fields = load("incidents")["template"]["mappings"]["properties"]
+        self.assertEqual(fields["hunt_bookmarks"], {"type": "object", "enabled": False})
+
     def test_workflow_run_storage_boundary(self):
         fields = load("incidents")["template"]["mappings"]["properties"]
         self.assertEqual(fields["workflow_runs"], {"type": "object", "enabled": False})
