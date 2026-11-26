@@ -44,6 +44,23 @@ class IncidentTemplatesTest(unittest.TestCase):
         fields = load("incidents")["template"]["mappings"]["properties"]
         self.assertEqual(fields["workflow_runs"], {"type": "object", "enabled": False})
 
+    def test_behaviour_observation_storage_boundary(self):
+        template = load("behaviour-observations")
+        self.assertEqual(template["index_patterns"], [".wazuh-behaviour-observations-v1"])
+        self.assertNotIn("data_stream", template)
+        self.assertTrue(template["template"]["settings"]["index"]["hidden"])
+        mapping = template["template"]["mappings"]
+        self.assertEqual(mapping["dynamic"], "strict")
+        fields = mapping["properties"]
+        self.assertEqual(set(fields), {"id", "model", "query", "actor", "observed_at", "coverage", "finding_count",
+                                       "assessment", "state", "revision", "review", "incident_id", "promoted_at"})
+        self.assertEqual(fields["assessment"], {"type": "object", "enabled": False})
+        self.assertEqual(fields["review"], {"type": "object", "enabled": False})
+        self.assertEqual(fields["query"]["dynamic"], "strict")
+        self.assertEqual(fields["query"]["properties"]["day"], {"type": "keyword"})
+        self.assertFalse(fields["query"]["properties"]["value"]["index"])
+        self.assertFalse(fields["query"]["properties"]["value"]["doc_values"])
+
     def test_automation_storage_boundaries(self):
         template = load("automation-policies")
         self.assertEqual(template["index_patterns"], [".wazuh-incident-automation-v1"])
