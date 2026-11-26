@@ -198,5 +198,12 @@
     ],
     "index_permissions": [],
     "tenant_permissions": []
+  },
+  "incident_entity_investigator": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/entity_investigate"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
   }
 }
