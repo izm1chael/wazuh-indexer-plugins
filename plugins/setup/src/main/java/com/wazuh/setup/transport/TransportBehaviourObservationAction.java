@@ -79,7 +79,11 @@ public abstract class TransportBehaviourObservationAction extends HandledTranspo
             if("review".equals(operation)){
                 if(!(body.get("decision") instanceof String decision)||!(body.get("reason") instanceof String reason))throw bad();
                 service.review(id,rev,actor,decision,reason,result);
-            }else service.promote(id,rev,actor,result);
+            }else {
+                if(!PluginSettings.BEHAVIOUR_PROMOTION_ENABLED.get(settings))
+                    throw new OpenSearchStatusException("Behaviour promotion disabled",RestStatus.FORBIDDEN);
+                service.promote(id,rev,actor,result);
+            }
         }catch(IllegalArgumentException|java.io.IOException e){listener.onFailure(bad());}
         catch(Exception e){listener.onFailure(e);}
     }
