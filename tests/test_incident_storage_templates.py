@@ -36,6 +36,16 @@ class IncidentTemplatesTest(unittest.TestCase):
         self.assertFalse(offer["properties"]["offered_by"]["index"])
         self.assertFalse(offer["properties"]["offered_at"]["index"])
 
+    def test_indicator_catalog_storage_boundary(self):
+        template = load("indicators")
+        self.assertEqual(template["index_patterns"], [".wazuh-incident-indicators-v1"])
+        self.assertNotIn("data_stream", template)
+        self.assertTrue(template["template"]["settings"]["index"]["hidden"])
+        mappings = template["template"]["mappings"]
+        self.assertEqual(mappings["dynamic"], "strict")
+        self.assertEqual(mappings["properties"], {"revision": {"type": "integer"},
+                         "indicators": {"type": "object", "enabled": False}})
+
     def test_investigation_register_storage_boundaries(self):
         fields = load("incidents")["template"]["mappings"]["properties"]
         self.assertEqual(fields["tags"], {"type": "keyword", "ignore_above": 64})
