@@ -67,6 +67,11 @@ import com.wazuh.setup.rest.RestIncidentHuntAction;
 import com.wazuh.setup.transport.TransportIncidentHuntAction;
 import com.wazuh.setup.action.CorrelationPolicyAction;
 import com.wazuh.setup.action.AnalyticsRunAction;
+import com.wazuh.setup.action.IncidentAutomationAction;
+import com.wazuh.setup.incident.IncidentAutomationStore;
+import com.wazuh.setup.incident.IncidentAutomationService;
+import com.wazuh.setup.rest.RestIncidentAutomationAction;
+import com.wazuh.setup.transport.TransportIncidentAutomationAction;
 import com.wazuh.setup.incident.AnalyticsExecutionService;
 import com.wazuh.setup.rest.RestAnalyticsRunAction;
 import com.wazuh.setup.transport.TransportAnalyticsRunAction;
@@ -214,6 +219,7 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
             this.indices.add(new StateIndex(IncidentRepository.INCIDENTS, "templates/cases/incidents"));
             this.indices.add(new StateIndex(IncidentRepository.ACTIVITY, "templates/cases/activity"));
             this.indices.add(new StateIndex(CorrelationPolicyStore.INDEX, "templates/cases/correlation-policies"));
+            this.indices.add(new StateIndex(IncidentAutomationStore.INDEX, "templates/cases/automation-policies"));
             if (PluginSettings.ANALYTICS_ENABLED.get(environment.settings())) {
                 this.indices.add(new StateIndex(AnalyticsExecutionService.RUN_INDEX, "templates/cases/analytics-runs"));
                 this.indices.add(new StateIndex(AnalyticsExecutionService.CORRELATION_INDEX, "templates/cases/correlation-execution"));
@@ -290,7 +296,9 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
         IncidentInvestigationService investigation = new IncidentInvestigationService(client, threadPool, incidents, new FindingAccess(client));
         IncidentWriteService incidentWriter = new IncidentWriteService(incidents, new FindingAccess(client),
                 Clock.systemUTC(), error -> log.warn("Incident activity delivery pending", error));
-        return List.of(this.settingsIndex, this.settingsAdminIndex, this.sessionsIndex, incidentReader, incidentWriter, investigation, new CorrelationPreviewService(client), new AnalyticsExecutionService(client, threadPool, Clock.systemUTC(), incidents), new IncidentHuntService(client), new CorrelationPolicyStore(client, threadPool, Clock.systemUTC()), new IndicatorCatalogStore(client, threadPool, Clock.systemUTC()), new IncidentMetricsService(client, threadPool, Clock.systemUTC()));
+        IncidentAutomationStore automationStore = new IncidentAutomationStore(client, threadPool, Clock.systemUTC());
+        IncidentAutomationService automation = new IncidentAutomationService(client, threadPool, incidents, automationStore, Clock.systemUTC());
+        return List.of(automationStore, automation, this.settingsIndex, this.settingsAdminIndex, this.sessionsIndex, incidentReader, incidentWriter, investigation, new CorrelationPreviewService(client), new AnalyticsExecutionService(client, threadPool, Clock.systemUTC(), incidents), new IncidentHuntService(client), new CorrelationPolicyStore(client, threadPool, Clock.systemUTC()), new IndicatorCatalogStore(client, threadPool, Clock.systemUTC()), new IncidentMetricsService(client, threadPool, Clock.systemUTC()));
     }
 
     @Override
@@ -402,6 +410,7 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
             handlers.add(new RestIncidentCorrelationAction());
             handlers.add(new RestIncidentHuntAction());
             handlers.add(new RestCorrelationPolicyAction());
+            handlers.add(new RestIncidentAutomationAction());
             if (PluginSettings.ANALYTICS_ENABLED.get(settings)) handlers.add(new RestAnalyticsRunAction());
             handlers.add(new RestIndicatorCatalogAction());
         }
@@ -421,6 +430,9 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
                         PutAiAssistantSessionAction.INSTANCE, TransportPutAiAssistantSessionAction.class),
                 new ActionPlugin.ActionHandler<>(CorrelationPolicyAction.READ, TransportCorrelationPolicyAction.Read.class),
                 new ActionPlugin.ActionHandler<>(AnalyticsRunAction.READ, TransportAnalyticsRunAction.Read.class),
+                new ActionPlugin.ActionHandler<>(IncidentAutomationAction.READ, TransportIncidentAutomationAction.Read.class),
+                new ActionPlugin.ActionHandler<>(IncidentAutomationAction.SAVE, TransportIncidentAutomationAction.Save.class),
+                new ActionPlugin.ActionHandler<>(IncidentAutomationAction.EXECUTE, TransportIncidentAutomationAction.Execute.class),
                 new ActionPlugin.ActionHandler<>(AnalyticsRunAction.EXECUTE, TransportAnalyticsRunAction.Execute.class),
                 new ActionPlugin.ActionHandler<>(IndicatorCatalogAction.READ, TransportIndicatorCatalogAction.Read.class),
                 new ActionPlugin.ActionHandler<>(IndicatorCatalogAction.SAVE, TransportIndicatorCatalogAction.Save.class),
@@ -454,6 +466,7 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
                 PluginSettings.MAX_RETRIES,
                 PluginSettings.SETTINGS_UPDATE_ENABLED,
                 PluginSettings.INCIDENTS_ENABLED, PluginSettings.ANALYTICS_ENABLED, PluginSettings.ANALYTICS_DEPLOYMENT,
-                PluginSettings.ANALYTICS_ACTOR, PluginSettings.ANALYTICS_POLICIES);
+                PluginSettings.ANALYTICS_ACTOR, PluginSettings.ANALYTICS_POLICIES, PluginSettings.AUTOMATION_ENABLED,
+                PluginSettings.AUTOMATION_ACTOR, PluginSettings.AUTOMATION_POLICY);
     }
 }
