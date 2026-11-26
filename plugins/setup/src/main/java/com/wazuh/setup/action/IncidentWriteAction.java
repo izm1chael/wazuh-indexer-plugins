@@ -24,7 +24,7 @@ import com.wazuh.setup.incident.IncidentMutation.Operation;
 public final class IncidentWriteAction extends ActionType<IncidentWriteResponse> {
     public enum Grant {
         CREATE("create"), ASSIGN("assign"), UPDATE("update"), CLOSE("close"), REOPEN("reopen"), FINDINGS("findings"), COLLABORATE("collaborate"),
-        RESPONSE_REQUEST("response_request"), RESPONSE_APPROVAL("response_approval"), RESPONSE_OUTCOME("response_outcome"), PLAYBOOK_APPLY("playbook_apply"), AI_FEEDBACK("ai_feedback"), TUNING_PROPOSE("tuning_propose"), TUNING_REVIEW("tuning_review");
+        RESPONSE_REQUEST("response_request"), RESPONSE_APPROVAL("response_approval"), RESPONSE_OUTCOME("response_outcome"), PLAYBOOK_APPLY("playbook_apply"), WORKFLOW_OPERATE("workflow_operate"), AI_FEEDBACK("ai_feedback"), TUNING_PROPOSE("tuning_propose"), TUNING_REVIEW("tuning_review");
 
         private final String suffix;
         Grant(String suffix) { this.suffix = suffix; }
@@ -47,6 +47,7 @@ public final class IncidentWriteAction extends ActionType<IncidentWriteResponse>
                 case TUNING_PROPOSE -> operation == Operation.CREATE_TUNING_PROPOSAL || operation == Operation.WITHDRAW_TUNING_PROPOSAL;
                 case TUNING_REVIEW -> operation == Operation.REVIEW_TUNING_PROPOSAL;
                 case AI_FEEDBACK -> operation == Operation.RECORD_AI_FEEDBACK;
+                case WORKFLOW_OPERATE -> operation == Operation.START_WORKFLOW || operation == Operation.ADVANCE_WORKFLOW || operation == Operation.CANCEL_WORKFLOW;
                 case PLAYBOOK_APPLY -> operation == Operation.APPLY_PLAYBOOK;
                 case RESPONSE_OUTCOME -> operation == Operation.RECORD_RESPONSE_OUTCOME;
                 case FINDINGS -> operation == Operation.ATTACH_FINDING || operation == Operation.DETACH_FINDING;
@@ -67,6 +68,8 @@ public final class IncidentWriteAction extends ActionType<IncidentWriteResponse>
     public static final IncidentWriteAction RESPONSE_REQUEST = new IncidentWriteAction(Grant.RESPONSE_REQUEST);
     public static final IncidentWriteAction RESPONSE_APPROVAL = new IncidentWriteAction(Grant.RESPONSE_APPROVAL);
     public static final IncidentWriteAction RESPONSE_OUTCOME = new IncidentWriteAction(Grant.RESPONSE_OUTCOME);
+
+    public static final IncidentWriteAction WORKFLOW_OPERATE = new IncidentWriteAction(Grant.WORKFLOW_OPERATE);
 
     public static final IncidentWriteAction PLAYBOOK_APPLY = new IncidentWriteAction(Grant.PLAYBOOK_APPLY);
 
