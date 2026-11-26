@@ -74,12 +74,18 @@ public final class IncidentRepository {
     }
 
     void readCreationActivity(UUID id, ActionListener<Map<String, Object>> listener) {
+        readActivity(id, 1, listener);
+    }
+
+    void readActivity(UUID id, int revision, ActionListener<Map<String, Object>> listener) {
+        if (revision < 1) throw new IllegalArgumentException("Invalid activity revision");
         try (ThreadContext.StoredContext ignored = threadPool.getThreadContext().stashContext()) {
-            client.get(new GetRequest(ACTIVITY, id + ":1"), ActionListener.wrap(response -> {
+            client.get(new GetRequest(ACTIVITY, id + ":" + revision), ActionListener.wrap(response -> {
                 if (!response.isExists()) {
-                    listener.onFailure(new OpenSearchStatusException("Creation activity not delivered", RestStatus.CONFLICT));
+                    listener.onFailure(new OpenSearchStatusException("Activity not delivered", RestStatus.CONFLICT));
                     return;
                 }
+                if (!ACTIVITY.equals(response.getIndex()) || !(id + ":" + revision).equals(response.getId())) throw new IllegalStateException("Activity identity mismatch");
                 listener.onResponse(response.getSourceAsMap());
             }, listener::onFailure));
         }
