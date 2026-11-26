@@ -63,10 +63,16 @@ final class IncidentWorkflowRuns {
     private static Map<String,Object> last(Map<String,Object> run) { var s = steps(run); return s.get(s.size()-1); }
     private static String stage(Map<String,Object> run) { return (String) last(run).get("stage"); }
     private static Map<String,Object> find(List<Map<String,Object>> rows, Object id) {
-        return rows.stream().filter(row -> id.equals(row.get("id"))).findFirst().orElseThrow(() -> conflict("Workflow reference unavailable"));
+        var matches = rows.stream().filter(row -> id.equals(row.get("id"))).toList();
+        if (matches.size() != 1) throw conflict("Workflow reference unavailable or ambiguous");
+        return matches.get(0);
     }
     private static boolean taskMatches(Map<String,Object> task, Map<String,Object> step, String title) {
-        return title.equals(task.get("title")) && step.get("actor").equals(task.get("created_by")) && step.get("at").equals(task.get("created_at"));
+        if (!title.equals(task.get("title")) || !step.get("actor").equals(task.get("created_by")) || !step.get("at").equals(task.get("created_at"))) return false;
+        if ("open".equals(task.get("status"))) return task.get("completed_by") == null && task.get("completed_at") == null;
+        if (!"completed".equals(task.get("status"))) return false;
+        text(task.get("completed_by"),1024);
+        return !Instant.parse(text(task.get("completed_at"),64)).isBefore(Instant.parse((String)step.get("at")));
     }
 
     static List<Map<String,Object>> runs(Map<String,Object> source) {
@@ -77,7 +83,7 @@ final class IncidentWorkflowRuns {
         var tasks = IncidentInvestigationService.projectTasks(source);
         var responses = IncidentResponses.project(source);
         var revisions = new HashSet<Integer>();
-        int priorStart = 0, active = 0;
+        int priorEnd = 0, active = 0;
         for (Object item : raw) {
             if (!(item instanceof Map<?,?> row) || !row.keySet().equals(FIELDS) || !Integer.valueOf(1).equals(row.get("version")) ||
                     !(row.get("steps") instanceof List<?> entries) || entries.isEmpty() || entries.size() > 4) throw conflict("Invalid workflow record");
@@ -100,9 +106,9 @@ final class IncidentWorkflowRuns {
                 String expected = source.get("id") + ":" + rev;
                 switch (phase) {
                     case "prepare":
-                        if (!previous.isEmpty() || !id.equals(expected) || rev <= priorStart || !expected.equals(ref) ||
+                        if (!previous.isEmpty() || !id.equals(expected) || rev <= priorEnd || active != 0 || !expected.equals(ref) ||
                                 !"started".equals(observation) || !taskMatches(find(tasks,ref),normalized,PREPARE)) throw conflict("Invalid preparation step");
-                        priorStart = rev; break;
+                        break;
                     case "response":
                         if (!"prepare".equals(previous) || !expected.equals(ref) || !"task_completed".equals(observation))
                             throw conflict("Invalid response step");
@@ -130,6 +136,7 @@ final class IncidentWorkflowRuns {
                 }
                 events.add(normalized); previous = phase; prior = rev; before = instant;
             }
+            priorEnd = prior;
             if (!TERMINAL.contains(previous) && ++active > 1) throw conflict("Multiple active workflows");
             result.add(Map.of("id",id,"template_id",template,"version",1,"scope",target,"reason",reason,"steps",events));
         }
