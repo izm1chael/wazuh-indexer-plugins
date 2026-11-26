@@ -66,6 +66,15 @@ public class PluginSettings {
     public static final Setting<Boolean> INCIDENTS_ENABLED =
             Setting.boolSetting("plugins.setup.incidents.enabled", false, Setting.Property.NodeScope);
 
+    public static final Setting<Boolean> SOAR_ENABLED =
+            Setting.boolSetting("plugins.setup.incidents.soar.enabled", false, Setting.Property.NodeScope);
+    public static final Setting<String> SOAR_ACTOR =
+            Setting.simpleString("plugins.setup.incidents.soar.actor", "", Setting.Property.NodeScope);
+    public static final Setting<String> SOAR_MANAGER =
+            Setting.simpleString("plugins.setup.incidents.soar.manager_id", "", Setting.Property.NodeScope);
+    public static final Setting<String> SOAR_AGENTS =
+            Setting.simpleString("plugins.setup.incidents.soar.agents", "", Setting.Property.NodeScope);
+
     /** Incident automation requires a separately approved rule set and service principal. */
     public static final Setting<Boolean> AUTOMATION_ENABLED =
             Setting.boolSetting("plugins.setup.incidents.automation.enabled", false, Setting.Property.NodeScope);
