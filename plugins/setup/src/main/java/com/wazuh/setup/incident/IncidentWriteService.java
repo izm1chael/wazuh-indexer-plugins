@@ -94,6 +94,8 @@ public final class IncidentWriteService {
     private static Result publicResult(IncidentRepository.Stored stored, boolean pending) {
         Map<String, Object> result = new LinkedHashMap<>(stored.source());
         result.remove("pending_activity");
+        // Link visibility must be resolved per reader before exposing individual references.
+        result.remove("findings");
         return new Result(result, pending);
     }
 }

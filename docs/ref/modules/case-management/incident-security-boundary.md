@@ -11,6 +11,7 @@ Initial scope is a single SOC. All approved readers may see all incidents in tha
 - Self-assignment / return new incident: `cluster:admin/wazuh/incident/assign`.
 - Triage, activation, metadata: `cluster:admin/wazuh/incident/update`.
 - Classified closure: `cluster:admin/wazuh/incident/close`.
+- Finding relationships: `cluster:admin/wazuh/incident/findings`.
 - Reopen: `cluster:admin/wazuh/incident/reopen`.
 - Recovery: separate internal worker or administrator-only action, not an analyst grant.
 
@@ -21,4 +22,14 @@ Separate transport actions (or explicit security-plugin-enforced per-command per
 - Verify the actual security role configuration in the Wazuh indexer distribution and prohibit broad `wazuh-*` grants from bypassing the action boundary. Test direct GET/search/index/update/delete/bulk and unauthorized transport actions with real roles.
 - Test transport serialization, principal propagation, API denial, optimistic concurrency, create idempotency, ambiguous write outcomes and pending event recovery.
 - Read finding evidence under the original caller context before any privilege elevation; do not persist evidence into a broader-readable case without policy review.
-- Staged repository/mutation classes do not register actions, provision indices or grant roles. They are not a deployable feature yet.
+- Staged repository/mutation/REST classes do not register actions, provision indices or grant roles. They are not a deployable feature yet.
+
+## Staged write REST contract
+
+- POST `/_plugins/_setup/incidents` with title, severity, optional description/priority/TLP.
+- POST `/_plugins/_setup/incidents/{uuid}/{command}?expected_revision=N` with a command-specific JSON object.
+- Commands: assign-self, unassign, start-triage, activate, edit, close, reopen, attach-finding, detach-finding.
+- Each route maps to a distinct fixed action grant, not an arbitrary action supplied by a caller.
+- Success returns `{incident, activity_delivery}`; pending means the mutation committed but delivery is not confirmed. No claim of request idempotency yet.
+- The incident projection omits the pending audit payload and individual finding references. The count remains visible within the single-SOC case read boundary. A later link read API must recheck finding visibility under the reader's own permissions; activity containing reference metadata also requires a redaction policy before exposure.
+- The current implementation bounds each aggregate at 1,000 active references; a subsequent capacity review can migrate to a separate relation index without exposing partial writes.
