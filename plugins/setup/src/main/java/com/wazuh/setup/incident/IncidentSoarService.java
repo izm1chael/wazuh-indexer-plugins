@@ -28,9 +28,11 @@ public final class IncidentSoarService {
     private final Clock clock;
     public IncidentSoarService(IncidentRepository repository, Clock clock) { this.repository = repository; this.clock = clock; }
 
-    public void dispatch(UUID incident, int revision, String response, String actor, String manager, Set<String> agents,
+    public void dispatch(UUID incident, int revision, String response, String scope, String actor, String manager, Set<String> agents,
             String outcome, ActionListener<Map<String, Object>> listener) {
         repository.get(incident, ActionListener.wrap(stored -> {
+            var requested = IncidentResponses.project(stored.source()).stream().filter(row -> response.equals(row.get("id"))).findFirst().orElseThrow();
+            if (!scope.equals(requested.get("scope"))) throw new org.opensearch.OpenSearchStatusException("Approved target changed", org.opensearch.core.rest.RestStatus.CONFLICT);
             var next = IncidentMutation.dispatchScan(stored.source(), revision, response, actor, clock.instant(), manager, agents, outcome);
             repository.commit(stored, next, ActionListener.wrap(committed ->
                 repository.deliver(committed, ActionListener.wrap(delivered -> {
