@@ -266,9 +266,12 @@ public final class IndicatorCatalog {
     }
     private static String identity(Map<String, Object> row) { return row.get("type") + ":" + row.get("value"); }
     private static String text(Object value, int max) {
-        if (!(value instanceof String s) || s.isBlank() || s.length() > max || !s.equals(s.trim()) ||
+        if (!(value instanceof String s) || s.isBlank() || s.length() > max || boundarySpace(s.codePointAt(0)) || boundarySpace(s.codePointBefore(s.length())) ||
                 s.chars().anyMatch(Character::isISOControl)) throw invalid("Invalid indicator text");
         return s;
+    }
+    private static boolean boundarySpace(int cp) {
+        return Character.isWhitespace(cp) || Character.isSpaceChar(cp) || cp == 0xfeff;
     }
     private static Instant time(Object value) {
         try {
