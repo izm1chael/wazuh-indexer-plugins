@@ -23,7 +23,8 @@ import com.wazuh.setup.incident.IncidentMutation.Operation;
 /** Separate action identities prevent a grant for one workflow from authorising another. */
 public final class IncidentWriteAction extends ActionType<IncidentWriteResponse> {
     public enum Grant {
-        CREATE("create"), ASSIGN("assign"), UPDATE("update"), CLOSE("close"), REOPEN("reopen"), FINDINGS("findings"), COLLABORATE("collaborate");
+        CREATE("create"), ASSIGN("assign"), UPDATE("update"), CLOSE("close"), REOPEN("reopen"), FINDINGS("findings"), COLLABORATE("collaborate"),
+        RESPONSE_REQUEST("response_request"), RESPONSE_APPROVAL("response_approval"), RESPONSE_OUTCOME("response_outcome");
 
         private final String suffix;
         Grant(String suffix) { this.suffix = suffix; }
@@ -38,6 +39,9 @@ public final class IncidentWriteAction extends ActionType<IncidentWriteResponse>
                 case CLOSE -> operation == Operation.CLOSE;
                 case REOPEN -> operation == Operation.REOPEN;
                 case COLLABORATE -> operation == Operation.ADD_NOTE || operation == Operation.CREATE_TASK || operation == Operation.COMPLETE_TASK || operation == Operation.REOPEN_TASK;
+                case RESPONSE_REQUEST -> operation == Operation.REQUEST_RESPONSE || operation == Operation.CANCEL_RESPONSE;
+                case RESPONSE_APPROVAL -> operation == Operation.APPROVE_RESPONSE || operation == Operation.REJECT_RESPONSE;
+                case RESPONSE_OUTCOME -> operation == Operation.RECORD_RESPONSE_OUTCOME;
                 case FINDINGS -> operation == Operation.ATTACH_FINDING || operation == Operation.DETACH_FINDING;
             };
         }
@@ -52,6 +56,10 @@ public final class IncidentWriteAction extends ActionType<IncidentWriteResponse>
     public static final IncidentWriteAction FINDINGS = new IncidentWriteAction(Grant.FINDINGS);
 
     public static final IncidentWriteAction COLLABORATE = new IncidentWriteAction(Grant.COLLABORATE);
+
+    public static final IncidentWriteAction RESPONSE_REQUEST = new IncidentWriteAction(Grant.RESPONSE_REQUEST);
+    public static final IncidentWriteAction RESPONSE_APPROVAL = new IncidentWriteAction(Grant.RESPONSE_APPROVAL);
+    public static final IncidentWriteAction RESPONSE_OUTCOME = new IncidentWriteAction(Grant.RESPONSE_OUTCOME);
 
     private IncidentWriteAction(Grant grant) {
         super(grant.actionName(), IncidentWriteResponse::new);

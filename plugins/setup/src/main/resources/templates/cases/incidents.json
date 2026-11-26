@@ -172,6 +172,10 @@
         "correlation_origin": {
           "type": "object",
           "enabled": false
+        },
+        "response_requests": {
+          "type": "object",
+          "enabled": false
         }
       }
     }

@@ -406,7 +406,10 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
                 new ActionPlugin.ActionHandler<>(IncidentWriteAction.CLOSE, TransportIncidentWriteAction.Close.class),
                 new ActionPlugin.ActionHandler<>(IncidentWriteAction.REOPEN, TransportIncidentWriteAction.Reopen.class),
                 new ActionPlugin.ActionHandler<>(IncidentWriteAction.FINDINGS, TransportIncidentWriteAction.Findings.class),
-                new ActionPlugin.ActionHandler<>(IncidentWriteAction.COLLABORATE, TransportIncidentWriteAction.Collaborate.class));
+                new ActionPlugin.ActionHandler<>(IncidentWriteAction.COLLABORATE, TransportIncidentWriteAction.Collaborate.class),
+                new ActionPlugin.ActionHandler<>(IncidentWriteAction.RESPONSE_REQUEST, TransportIncidentWriteAction.ResponseRequest.class),
+                new ActionPlugin.ActionHandler<>(IncidentWriteAction.RESPONSE_APPROVAL, TransportIncidentWriteAction.ResponseApproval.class),
+                new ActionPlugin.ActionHandler<>(IncidentWriteAction.RESPONSE_OUTCOME, TransportIncidentWriteAction.ResponseOutcome.class));
     }
 
     @Override

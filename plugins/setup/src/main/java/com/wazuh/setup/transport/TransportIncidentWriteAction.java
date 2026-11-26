@@ -135,4 +135,21 @@ public abstract class TransportIncidentWriteAction extends HandledTransportActio
             super(Grant.COLLABORATE, transport, filters, writer, threadPool, clusterService);
         }
     }
+    public static final class ResponseRequest extends TransportIncidentWriteAction {
+        @Inject public ResponseRequest(TransportService transport, ActionFilters filters, IncidentWriteService writer, ThreadPool threadPool, ClusterService clusterService) {
+            super(Grant.RESPONSE_REQUEST, transport, filters, writer, threadPool, clusterService);
+        }
+    }
+
+    public static final class ResponseApproval extends TransportIncidentWriteAction {
+        @Inject public ResponseApproval(TransportService transport, ActionFilters filters, IncidentWriteService writer, ThreadPool threadPool, ClusterService clusterService) {
+            super(Grant.RESPONSE_APPROVAL, transport, filters, writer, threadPool, clusterService);
+        }
+    }
+
+    public static final class ResponseOutcome extends TransportIncidentWriteAction {
+        @Inject public ResponseOutcome(TransportService transport, ActionFilters filters, IncidentWriteService writer, ThreadPool threadPool, ClusterService clusterService) {
+            super(Grant.RESPONSE_OUTCOME, transport, filters, writer, threadPool, clusterService);
+        }
+    }
 }

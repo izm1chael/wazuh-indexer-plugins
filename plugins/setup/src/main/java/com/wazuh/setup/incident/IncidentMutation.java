@@ -37,7 +37,7 @@ import java.util.UUID;
  */
 public final class IncidentMutation {
     public enum Operation {
-        CREATE, ASSIGN_SELF, UNASSIGN, START_TRIAGE, ACTIVATE, CLOSE, REOPEN, EDIT, ATTACH_FINDING, DETACH_FINDING, ADD_NOTE, CREATE_TASK, COMPLETE_TASK, REOPEN_TASK
+        CREATE, ASSIGN_SELF, UNASSIGN, START_TRIAGE, ACTIVATE, CLOSE, REOPEN, EDIT, ATTACH_FINDING, DETACH_FINDING, ADD_NOTE, CREATE_TASK, COMPLETE_TASK, REOPEN_TASK, REQUEST_RESPONSE, CANCEL_RESPONSE, APPROVE_RESPONSE, REJECT_RESPONSE, RECORD_RESPONSE_OUTCOME
     }
 
     private static final Set<String> SEVERITY = Set.of("informational", "low", "medium", "high", "critical");
@@ -71,6 +71,7 @@ public final class IncidentMutation {
         incident.put("findings", List.of());
         incident.put("finding_count", 0);
         incident.put("tasks", List.of());
+        incident.put("response_requests", List.of());
         incident.put("revision", 1);
         Map<String, Object> changes = new LinkedHashMap<>();
         incident.forEach((key, value) -> changes.put(key, change(null, value)));
@@ -129,6 +130,7 @@ public final class IncidentMutation {
                 only(input, Set.of("classification", "reason"));
                 requireOwner(owner, actor);
                 if (!"triaging".equals(status) && !"active".equals(status)) throw conflict("Triage before closing");
+                IncidentResponses.requireNoOutstanding(current);
                 set(next, changes, "status", "closed");
                 set(next, changes, "closed_at", now);
                 if (current.get("first_closed_at") == null) set(next, changes, "first_closed_at", now);
@@ -198,6 +200,16 @@ public final class IncidentMutation {
                     case COMPLETE_TASK -> "task_completed";
                     default -> "task_reopened";
                 };
+                break;
+            case REQUEST_RESPONSE:
+            case CANCEL_RESPONSE:
+                requireOwner(owner, actor);
+                kind = IncidentResponses.apply(next, changes, operation, input, actor, now, revision + 1);
+                break;
+            case APPROVE_RESPONSE:
+            case REJECT_RESPONSE:
+            case RECORD_RESPONSE_OUTCOME:
+                kind = IncidentResponses.apply(next, changes, operation, input, actor, now, revision + 1);
                 break;
             default:
                 throw invalid("Unsupported mutation");
