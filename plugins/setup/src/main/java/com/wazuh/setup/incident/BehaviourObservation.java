@@ -30,7 +30,7 @@ import java.util.UUID;
 /** Shared SOC observation state. No raw findings or client-supplied statistics are persisted. */
 public final class BehaviourObservation {
     private static final Set<String> KEYS=Set.of("id","model","query","actor","observed_at","coverage","finding_count",
-            "assessment","state","revision","review","incident_id");
+            "assessment","state","revision","review","incident_id","promoted_at");
     private BehaviourObservation() {}
     public static String fingerprint(RuleBehaviourModel.Input input) {
         return HexFormat.of().formatHex(digest("wazuh-rule-behaviour-scope-v1",input.field(),input.value(),input.rule().toString()));
@@ -66,7 +66,7 @@ public final class BehaviourObservation {
         for(String key:List.of("model","query","actor","observed_at","coverage","finding_count","assessment"))doc.put(key,report.get(key));
         if(!(doc.get("assessment") instanceof Map<?,?> assessment))throw invalid();
         doc.put("state",flagged(assessment)?"unreviewed":"not_flagged");doc.put("revision",1);
-        doc.put("review",null);doc.put("incident_id",null);
+        doc.put("review",null);doc.put("incident_id",null);doc.put("promoted_at",null);
         validate(doc);return doc;
     }
     private static boolean flagged(Map<?,?> assessment){
@@ -86,7 +86,7 @@ public final class BehaviourObservation {
         if(!expected.equals(a)||!Integer.valueOf((Integer)expected.get("baseline_total")+current).equals(row.get("finding_count")))throw invalid();
         String state=text(row.get("state"),32);
         if(revision==1){
-            if(!(flagged(a)?"unreviewed":"not_flagged").equals(state)||row.get("review")!=null||row.get("incident_id")!=null)throw invalid();
+            if(!(flagged(a)?"unreviewed":"not_flagged").equals(state)||row.get("review")!=null||row.get("incident_id")!=null||row.get("promoted_at")!=null)throw invalid();
             return;
         }
         if(!flagged(a)||!(row.get("review") instanceof Map<?,?> review)||!review.keySet().equals(Set.of("actor","at","decision","reason")))throw invalid();
@@ -94,9 +94,10 @@ public final class BehaviourObservation {
         text(review.get("reason"),1024);
         if(actor.equals(reviewer)||Instant.parse(text(review.get("at"),64)).isBefore(at)||
                 !Set.of("dismissed","monitor","escalation_requested").contains(decision))throw invalid();
-        if(revision==2&&decision.equals(state)&&row.get("incident_id")==null)return;
+        if(revision==2&&decision.equals(state)&&row.get("incident_id")==null&&row.get("promoted_at")==null)return;
         if(revision==3&&"promoted".equals(state)&&"escalation_requested".equals(decision)&&
-                incidentId(row,reviewer).toString().equals(row.get("incident_id")))return;
+                incidentId(row,reviewer).toString().equals(row.get("incident_id"))&&
+                !Instant.parse(text(row.get("promoted_at"),64)).isBefore(Instant.parse((String)review.get("at"))))return;
         throw invalid();
     }
     static Map<String,Object> review(Map<String,Object> row,int revision,String reviewer,String decision,String reason,Instant now){
@@ -117,10 +118,10 @@ public final class BehaviourObservation {
                 "description","Reviewed statistical observation "+row.get("id")+". Finding-volume deviation only; telemetry coverage unverified. Review the observation and independently capture supporting findings. No confirmed compromise.",
                 "severity","informational","priority","medium","tlp","TLP:AMBER");
     }
-    static Map<String,Object> promoted(Map<String,Object> row,String reviewer,UUID incident){
+    static Map<String,Object> promoted(Map<String,Object> row,String reviewer,UUID incident,Instant now){
         incidentPayload(row,reviewer);
         if(!incidentId(row,reviewer).equals(incident))throw invalid();
-        var next=new LinkedHashMap<>(row);next.put("state","promoted");next.put("revision",3);next.put("incident_id",incident.toString());
+        var next=new LinkedHashMap<>(row);next.put("state","promoted");next.put("revision",3);next.put("incident_id",incident.toString());next.put("promoted_at",now.toString());
         validate(next);return next;
     }
     private static IllegalArgumentException invalid(){return new IllegalArgumentException("Invalid behavioural observation or transition");}
