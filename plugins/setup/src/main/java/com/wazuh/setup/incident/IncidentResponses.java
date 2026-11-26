@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** Approval and manual outcome records only. No executable commands, endpoint calls or dispatch. */
+/** Response approval, dispatch reservation and unverified outcome records. No network I/O. */
 final class IncidentResponses {
     static final int MAX = 50;
     static final Set<String> TYPES = Set.of("investigate_endpoint", "review_containment", "review_indicator_block", "collect_evidence", "scan_vulnerability");
@@ -126,7 +126,7 @@ final class IncidentResponses {
             String scope = text(input.get("scope"), 512);
             String reason = text(input.get("reason"), 2048);
             if ("scan_vulnerability".equals(type)) { scanScope(scope); if (!scope.equals(input.get("scope"))) throw invalid("Exact scan scope required"); }
-            if (rows.stream().anyMatch(row -> Set.of("requested", "approved").contains(row.get("state")) &&
+            if (rows.stream().anyMatch(row -> Set.of("requested", "approved", "dispatch_reserved", "manager_accepted", "dispatch_unknown").contains(row.get("state")) &&
                     type.equals(row.get("type")) && scope.equals(row.get("scope")))) throw conflict("Outstanding matching response request");
             record.put("id", next.get("id") + ":" + revision);
             record.put("type", type); record.put("scope", scope); record.put("reason", reason);
