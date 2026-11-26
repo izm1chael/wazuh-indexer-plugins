@@ -51,6 +51,8 @@ final class FindingIntelligence {
         Map<String, Object> safe = source == null ? Map.of() : source;
         result.put("timestamp", timestamp(first(safe, "@timestamp")));
         result.put("rule_id", first(safe, "wazuh.rule.id", "rule.id"));
+        // Distinguish the exact Wazuh rule field from the display fallback for prevalence probes.
+        result.put("wazuh_rule_id", first(safe, "wazuh.rule.id"));
         result.put("rule_title", first(safe, "wazuh.rule.title", "rule.title", "rule.name"));
         Set<Map<String, String>> entities = new LinkedHashSet<>();
         ENTITY_FIELDS.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
