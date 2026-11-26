@@ -1,0 +1,12 @@
+# Example only. Do not enable until execution qualification is approved.
+[Unit]
+Description=Check for settled Wazuh analytics windows each minute
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+Persistent=true
+RandomizedDelaySec=10s
+Unit=wazuh-analytics.service
+
+[Install]
+WantedBy=timers.target
