@@ -22,6 +22,18 @@ import org.opensearch.test.OpenSearchTestCase;
 import java.util.Map;
 
 public class IncidentReadServiceTests extends OpenSearchTestCase {
+    public void testPersonalQueuesRequireAuthenticatedActor() {
+        var incoming = new IncidentReadService.Query("handover", null, null, null, 50, null, null);
+        var mine = new IncidentReadService.Query("mine", null, null, null, 50, null, null);
+        expectThrows(OpenSearchException.class, () -> IncidentReadService.build(incoming));
+        expectThrows(OpenSearchException.class, () -> IncidentReadService.build(mine, "_shared"));
+        String query = IncidentReadService.build(incoming, "bob").query().toString();
+        assertTrue(query.contains("handover.target"));
+        assertTrue(query.contains("bob"));
+        assertTrue(query.contains("triaging"));
+        assertTrue(IncidentReadService.build(mine, "alice").query().toString().contains("alice"));
+    }
+
     public void testOpenQueueIsIndependentOfFindingTime() {
         var query = new IncidentReadService.Query("open", null, null, null, 50, null, null);
         var source = IncidentReadService.build(query);
