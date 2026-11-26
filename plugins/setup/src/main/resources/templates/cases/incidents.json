@@ -188,7 +188,12 @@
         },
         "handover": {
           "type": "object",
-          "enabled": false
+          "dynamic": "strict",
+          "properties": {
+            "target": { "type": "keyword", "ignore_above": 1024 },
+            "offered_by": { "type": "keyword", "index": false, "doc_values": false },
+            "offered_at": { "type": "date", "format": "strict_date_time", "index": false, "doc_values": false }
+          }
         },
         "tuning_proposals": {
           "type": "object",
