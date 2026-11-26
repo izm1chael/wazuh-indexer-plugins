@@ -39,7 +39,7 @@ import java.util.function.Supplier;
 /** Fixed investigation projections. Finding sources are never read as system or returned here. */
 public final class IncidentInvestigationService {
     private static final Set<String> ACTIVITY_FIELDS = Set.of("id", "incident_id", "revision", "kind", "actor", "at");
-    private static final Set<String> CHANGE_FIELDS = Set.of("status", "severity", "priority", "tlp", "owner", "finding_count");
+    private static final Set<String> CHANGE_FIELDS = Set.of("status", "severity", "priority", "tlp", "owner", "finding_count", "handover_target");
 
     private final Client client;
     private final ThreadPool pool;
