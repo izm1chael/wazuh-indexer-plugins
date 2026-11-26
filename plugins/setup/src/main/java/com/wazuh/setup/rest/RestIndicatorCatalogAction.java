@@ -17,7 +17,7 @@
 package com.wazuh.setup.rest;
 
 import com.wazuh.setup.action.IndicatorCatalogAction;
-import com.wazuh.setup.action.IncidentCorrelationRequest;
+import com.wazuh.setup.action.IndicatorCatalogRequest;
 import com.wazuh.setup.action.IncidentReadResponse;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.core.rest.RestStatus;
@@ -37,7 +37,7 @@ public final class RestIndicatorCatalogAction extends BaseRestHandler {
     }
     @Override protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
         var action = request.path().equals(ROOT + "/save") ? IndicatorCatalogAction.SAVE : IndicatorCatalogAction.READ;
-        var body = new IncidentCorrelationRequest(request.content().utf8ToString());
+        var body = new IndicatorCatalogRequest(request.content().utf8ToString());
         return channel -> client.execute(action, body, new RestResponseListener<IncidentReadResponse>(channel) {
             @Override public org.opensearch.rest.RestResponse buildResponse(IncidentReadResponse response) throws Exception {
                 return new BytesRestResponse(RestStatus.OK, response.toXContent(XContentFactory.jsonBuilder(), ToXContent.EMPTY_PARAMS));
