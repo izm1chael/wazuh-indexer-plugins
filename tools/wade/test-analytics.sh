@@ -6,3 +6,4 @@ trap 'rm -rf "$out"' EXIT HUP INT TERM
 javac --release 17 -Xlint:all -Werror -d "$out" "$here"/src/com/wazuh/wade/*.java "$here"/test/com/wazuh/wade/*.java
 java -cp "$out" com.wazuh.wade.DetectionKernelTests
 java -cp "$out" com.wazuh.wade.AnalyticsTests
+java -cp "$out" com.wazuh.wade.ControlTests
