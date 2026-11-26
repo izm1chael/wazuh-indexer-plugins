@@ -226,6 +226,10 @@
         "automation_runs": {
           "type": "object",
           "enabled": false
+        },
+        "workflow_runs": {
+          "type": "object",
+          "enabled": false
         }
       }
     }
