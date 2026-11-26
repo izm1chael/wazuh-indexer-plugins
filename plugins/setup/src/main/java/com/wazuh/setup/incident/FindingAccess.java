@@ -21,6 +21,7 @@ import org.opensearch.action.get.GetRequest;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.rest.RestStatus;
 import org.opensearch.transport.client.Client;
+import java.time.Clock;
 
 /**
  * Verify visibility under the ORIGINAL caller's security context. No stashing or privilege
@@ -30,6 +31,19 @@ public final class FindingAccess {
     private final Client client;
 
     public FindingAccess(Client client) { this.client = client; }
+
+    /** Capture the exact version returned to the authenticated caller. No source leaves this method. */
+    void capture(FindingReference reference, String actor, Clock clock, ActionListener<FindingCaptureReceipt> listener) {
+        client.get(new GetRequest(reference.index(), reference.documentId()), ActionListener.wrap(response -> {
+            if (!response.isExists() || !reference.index().equals(response.getIndex()) ||
+                    !reference.documentId().equals(response.getId())) {
+                listener.onFailure(new OpenSearchStatusException("Finding not available", RestStatus.NOT_FOUND));
+                return;
+            }
+            listener.onResponse(FindingCaptureReceipt.create(reference, response.getSourceAsMap(),
+                    clock.instant(), actor, response.getSeqNo(), response.getPrimaryTerm()));
+        }, listener::onFailure));
+    }
 
     public void requireVisible(FindingReference reference, ActionListener<Void> listener) {
         GetRequest request = new GetRequest(reference.index(), reference.documentId());

@@ -87,18 +87,27 @@ public final class IncidentWriteService {
             // Both operations require current finding visibility. Otherwise detach could be a membership oracle.
             // Expired/restricted link cleanup requires a separate privileged maintenance workflow.
             // This is the first asynchronous request, before repository.get stashes the caller.
-            findingAccess.requireVisible(reference, ActionListener.wrap(
-                    ignored -> mutate(id, expectedRevision, operation, input, actor, listener), listener::onFailure));
+            if (operation == IncidentMutation.Operation.ATTACH_FINDING) {
+                findingAccess.capture(reference, actor, clock, ActionListener.wrap(
+                        receipt -> mutate(id, expectedRevision, operation, input, actor, receipt, listener), listener::onFailure));
+            } else {
+                findingAccess.requireVisible(reference, ActionListener.wrap(
+                        ignored -> mutate(id, expectedRevision, operation, input, actor, null, listener), listener::onFailure));
+            }
             return;
         }
-        mutate(id, expectedRevision, operation, input, actor, listener);
+        mutate(id, expectedRevision, operation, input, actor, null, listener);
     }
 
     private void mutate(UUID id, int expectedRevision, IncidentMutation.Operation operation,
-            Map<String, Object> input, String actor, ActionListener<Result> listener) {
+            Map<String, Object> input, String actor, FindingCaptureReceipt receipt, ActionListener<Result> listener) {
         repository.get(id, ActionListener.wrap(previous -> {
             Map<String, Object> next = IncidentMutation.apply(previous.source(), operation, input,
                     expectedRevision, actor, clock.instant());
+            if (operation == IncidentMutation.Operation.ATTACH_FINDING) {
+                if (receipt == null) throw new IllegalStateException("Finding receipt required");
+                FindingCaptureReceipt.appendToPending(next, receipt);
+            }
             repository.commit(previous, next, ActionListener.wrap(stored -> finish(stored, false, listener), listener::onFailure));
         }, listener::onFailure));
     }
