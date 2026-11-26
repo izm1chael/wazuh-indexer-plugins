@@ -126,5 +126,27 @@
     ],
     "index_permissions": [],
     "tenant_permissions": []
+  },
+  "incident_indicator_reader": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/indicator_read"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_indicator_writer": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/indicator_write"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_indicator_analyst": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/indicator_read",
+      "cluster:admin/wazuh/incident/indicator_write"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
   }
 }
