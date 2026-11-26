@@ -41,7 +41,8 @@ public final class IncidentWriteAction extends ActionType<IncidentWriteResponse>
                 case REOPEN -> operation == Operation.REOPEN;
                 case COLLABORATE -> operation == Operation.ADD_NOTE || operation == Operation.CREATE_TASK || operation == Operation.COMPLETE_TASK || operation == Operation.REOPEN_TASK ||
                         operation == Operation.SET_TAGS || operation == Operation.ADD_RELATION || operation == Operation.REMOVE_RELATION ||
-                        operation == Operation.REGISTER_EVIDENCE || operation == Operation.WITHDRAW_EVIDENCE;
+                        operation == Operation.REGISTER_EVIDENCE || operation == Operation.WITHDRAW_EVIDENCE ||
+                        operation == Operation.SAVE_HUNT_BOOKMARK || operation == Operation.WITHDRAW_HUNT_BOOKMARK;
                 case RESPONSE_REQUEST -> operation == Operation.REQUEST_RESPONSE || operation == Operation.CANCEL_RESPONSE;
                 case RESPONSE_APPROVAL -> operation == Operation.APPROVE_RESPONSE || operation == Operation.REJECT_RESPONSE;
                 case TUNING_PROPOSE -> operation == Operation.CREATE_TUNING_PROPOSAL || operation == Operation.WITHDRAW_TUNING_PROPOSAL;
