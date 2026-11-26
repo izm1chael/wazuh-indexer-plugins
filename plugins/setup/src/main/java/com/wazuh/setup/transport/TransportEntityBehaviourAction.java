@@ -44,7 +44,7 @@ public final class TransportEntityBehaviourAction extends HandledTransportAction
     }
     @Override protected void doExecute(Task task, IncidentHuntRequest request, ActionListener<IncidentReadResponse> listener) {
         try {
-            if (!PluginSettings.INCIDENTS_ENABLED.get(cluster.getSettings())) throw new OpenSearchStatusException("Experimental incidents disabled",RestStatus.FORBIDDEN);
+            if (!PluginSettings.INCIDENTS_ENABLED.get(cluster.getSettings()) || !PluginSettings.BEHAVIOUR_ENABLED.get(cluster.getSettings())) throw new OpenSearchStatusException("Experimental behaviour analytics disabled",RestStatus.FORBIDDEN);
             String actor=IncidentPrincipal.require(pool.getThreadContext());
             service.assess(TransportIncidentHuntAction.parse(request.payload()),actor,
                     ActionListener.wrap(value -> listener.onResponse(new IncidentReadResponse(value)),listener::onFailure));
