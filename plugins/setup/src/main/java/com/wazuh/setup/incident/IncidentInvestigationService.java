@@ -200,6 +200,7 @@ public final class IncidentInvestigationService {
         Map<String, Object> safe = new LinkedHashMap<>();
         if (source.get("changes") instanceof Map<?, ?> changes) {
             var fields = new java.util.HashSet<>(CHANGE_FIELDS);
+            if (Set.of("soar_dispatch_reserved", "soar_dispatch_reported").contains(source.get("kind"))) fields.addAll(Set.of("soar_response_id", "soar_state"));
             if ("automation_applied".equals(source.get("kind"))) fields.addAll(Set.of("automation_policy_id", "automation_policy_version", "automation_rule_id", "automation_trigger_revision", "automation_changed_fields"));
             if ("ai_feedback_recorded".equals(source.get("kind"))) {
                 fields.addAll(IncidentAiFeedback.FIELDS);
