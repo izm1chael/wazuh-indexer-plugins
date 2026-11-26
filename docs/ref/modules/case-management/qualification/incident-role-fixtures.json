@@ -148,5 +148,20 @@
     ],
     "index_permissions": [],
     "tenant_permissions": []
+  },
+  "incident_analytics_reader": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/analytics_read"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_analytics_executor": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/analytics_read",
+      "cluster:admin/wazuh/incident/analytics_execute"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
   }
 }
