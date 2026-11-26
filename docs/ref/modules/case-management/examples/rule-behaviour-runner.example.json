@@ -1,0 +1,12 @@
+{
+  "endpoint": "https://indexer.example.invalid:9200",
+  "username": "wazuh-behaviour-runner",
+  "ca_file": "/etc/wazuh-behaviour/ca.pem",
+  "deployment_id": "00000000-0000-4000-8000-000000000001",
+  "policy_id": "00000000-0000-4000-8000-000000000002",
+  "policy_version": 1,
+  "field": "user.name",
+  "value": "example-user",
+  "rule_uuid": "00000000-0000-4000-8000-000000000003",
+  "first_day": "2026-11-26T00:00:00Z"
+}
