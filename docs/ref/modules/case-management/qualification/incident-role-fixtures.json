@@ -119,5 +119,12 @@
     ],
     "index_permissions": [],
     "tenant_permissions": []
+  },
+  "incident_hunt_reader": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/hunt_read"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
   }
 }
