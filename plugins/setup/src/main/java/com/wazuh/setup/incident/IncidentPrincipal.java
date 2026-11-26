@@ -16,7 +16,7 @@
  */
 package com.wazuh.setup.incident;
 
-import org.opensearch.OpenSearchException;
+import org.opensearch.OpenSearchStatusException;
 import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.core.rest.RestStatus;
 
@@ -34,7 +34,7 @@ public final class IncidentPrincipal {
     static String requireUserInfo(String info) {
         String name = AuthenticatedUser.parse(info);
         if (AuthenticatedUser.SHARED_OWNER.equals(name) || name.length() > 1024) {
-            throw new OpenSearchException("Authenticated incident principal required", RestStatus.UNAUTHORIZED);
+            throw new OpenSearchStatusException("Authenticated incident principal required", RestStatus.UNAUTHORIZED);
         }
         return name;
     }

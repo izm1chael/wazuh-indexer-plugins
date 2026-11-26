@@ -16,7 +16,7 @@
  */
 package com.wazuh.setup.incident;
 
-import org.opensearch.OpenSearchException;
+import org.opensearch.OpenSearchStatusException;
 import org.opensearch.core.rest.RestStatus;
 
 import java.time.Instant;
@@ -179,12 +179,12 @@ public final class IncidentMutation {
 
     private static void requireActor(String actor) {
         if (actor == null || actor.isBlank() || actor.length() > 1024 || "_shared".equals(actor)) {
-            throw new OpenSearchException("Authenticated incident principal required", RestStatus.UNAUTHORIZED);
+            throw new OpenSearchStatusException("Authenticated incident principal required", RestStatus.UNAUTHORIZED);
         }
     }
 
     private static void requireOwner(Object owner, String actor) {
-        if (!actor.equals(owner)) throw new OpenSearchException("Incident owner required", RestStatus.FORBIDDEN);
+        if (!actor.equals(owner)) throw new OpenSearchStatusException("Incident owner required", RestStatus.FORBIDDEN);
     }
 
     private static void set(Map<String, Object> next, Map<String, Object> changes, String field, Object value) {
@@ -207,11 +207,11 @@ public final class IncidentMutation {
                 "kind", kind, "actor", incident.get("updated_by"), "at", incident.get("updated_at"), "changes", changes);
     }
 
-    private static OpenSearchException invalid(String message) {
-        return new OpenSearchException(message, RestStatus.BAD_REQUEST);
+    private static OpenSearchStatusException invalid(String message) {
+        return new OpenSearchStatusException(message, RestStatus.BAD_REQUEST);
     }
 
-    private static OpenSearchException conflict(String message) {
-        return new OpenSearchException(message, RestStatus.CONFLICT);
+    private static OpenSearchStatusException conflict(String message) {
+        return new OpenSearchStatusException(message, RestStatus.CONFLICT);
     }
 }
