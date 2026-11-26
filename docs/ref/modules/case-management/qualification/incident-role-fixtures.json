@@ -98,5 +98,12 @@
     ],
     "index_permissions": [],
     "tenant_permissions": []
+  },
+  "incident_ai_feedback": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/ai_feedback"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
   }
 }

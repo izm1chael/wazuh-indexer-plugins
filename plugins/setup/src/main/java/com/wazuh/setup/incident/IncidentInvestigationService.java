@@ -196,7 +196,12 @@ public final class IncidentInvestigationService {
         for (String field : ACTIVITY_FIELDS) if (source.containsKey(field)) result.put(field, source.get(field));
         Map<String, Object> safe = new LinkedHashMap<>();
         if (source.get("changes") instanceof Map<?, ?> changes) {
-            for (String field : CHANGE_FIELDS) {
+            var fields = new java.util.HashSet<>(CHANGE_FIELDS);
+            if ("ai_feedback_recorded".equals(source.get("kind"))) {
+                fields.addAll(IncidentAiFeedback.FIELDS);
+                fields.add("feedback_origin"); fields.add("closure_classification_at_feedback");
+            }
+            for (String field : fields) {
                 if (changes.get(field) instanceof Map<?, ?> change) {
                     Object before = change.get("before");
                     Object after = change.get("after");

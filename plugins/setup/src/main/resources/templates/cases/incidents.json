@@ -180,6 +180,11 @@
         "playbook_runs": {
           "type": "object",
           "enabled": false
+        },
+        "ai_feedback_ids": {
+          "type": "keyword",
+          "index": false,
+          "doc_values": false
         }
       }
     }

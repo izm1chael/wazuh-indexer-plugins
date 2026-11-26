@@ -157,4 +157,9 @@ public abstract class TransportIncidentWriteAction extends HandledTransportActio
             super(Grant.PLAYBOOK_APPLY, transport, filters, writer, threadPool, clusterService);
         }
     }
+    public static final class AiFeedback extends TransportIncidentWriteAction {
+        @Inject public AiFeedback(TransportService transport, ActionFilters filters, IncidentWriteService writer, ThreadPool threadPool, ClusterService clusterService) {
+            super(Grant.AI_FEEDBACK, transport, filters, writer, threadPool, clusterService);
+        }
+    }
 }

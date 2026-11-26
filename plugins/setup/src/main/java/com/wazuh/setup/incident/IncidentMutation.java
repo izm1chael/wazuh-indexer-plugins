@@ -37,7 +37,7 @@ import java.util.UUID;
  */
 public final class IncidentMutation {
     public enum Operation {
-        CREATE, ASSIGN_SELF, UNASSIGN, START_TRIAGE, ACTIVATE, CLOSE, REOPEN, EDIT, ATTACH_FINDING, DETACH_FINDING, ADD_NOTE, CREATE_TASK, COMPLETE_TASK, REOPEN_TASK, REQUEST_RESPONSE, CANCEL_RESPONSE, APPROVE_RESPONSE, REJECT_RESPONSE, RECORD_RESPONSE_OUTCOME, APPLY_PLAYBOOK
+        CREATE, ASSIGN_SELF, UNASSIGN, START_TRIAGE, ACTIVATE, CLOSE, REOPEN, EDIT, ATTACH_FINDING, DETACH_FINDING, ADD_NOTE, CREATE_TASK, COMPLETE_TASK, REOPEN_TASK, REQUEST_RESPONSE, CANCEL_RESPONSE, APPROVE_RESPONSE, REJECT_RESPONSE, RECORD_RESPONSE_OUTCOME, APPLY_PLAYBOOK, RECORD_AI_FEEDBACK
     }
 
     private static final Set<String> SEVERITY = Set.of("informational", "low", "medium", "high", "critical");
@@ -72,6 +72,7 @@ public final class IncidentMutation {
         incident.put("finding_count", 0);
         incident.put("tasks", List.of());
         incident.put("playbook_runs", List.of());
+        incident.put("ai_feedback_ids", List.of());
         incident.put("response_requests", List.of());
         incident.put("revision", 1);
         Map<String, Object> changes = new LinkedHashMap<>();
@@ -92,7 +93,7 @@ public final class IncidentMutation {
         String now = CLOCK.format(at);
         String status = (String) current.get("status");
         Object owner = current.get("owner");
-        if ("closed".equals(status) && operation != Operation.REOPEN) throw conflict("Reopen before modifying");
+        if ("closed".equals(status) && operation != Operation.REOPEN && operation != Operation.RECORD_AI_FEEDBACK) throw conflict("Reopen before modifying");
         Map<String, Object> next = new LinkedHashMap<>(current);
         Map<String, Object> changes = new LinkedHashMap<>();
         String kind;
@@ -201,6 +202,11 @@ public final class IncidentMutation {
                     case COMPLETE_TASK -> "task_completed";
                     default -> "task_reopened";
                 };
+                break;
+            case RECORD_AI_FEEDBACK:
+                requireOwner(owner, actor);
+                IncidentAiFeedback.apply(next, changes, input, revision);
+                kind = "ai_feedback_recorded";
                 break;
             case APPLY_PLAYBOOK:
                 requireOwner(owner, actor);
