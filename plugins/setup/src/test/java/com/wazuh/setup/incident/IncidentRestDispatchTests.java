@@ -41,6 +41,9 @@ public class IncidentRestDispatchTests extends OpenSearchTestCase {
         assertSame(IncidentWriteAction.RESPONSE_APPROVAL, RestIncidentWriteAction.dispatch("reject-response").action());
         assertSame(IncidentWriteAction.RESPONSE_OUTCOME, RestIncidentWriteAction.dispatch("record-response-outcome").action());
         assertSame(IncidentWriteAction.PLAYBOOK_APPLY, RestIncidentWriteAction.dispatch("apply-playbook").action());
+        for (String command : java.util.List.of("start-workflow", "advance-workflow", "cancel-workflow")) {
+            assertSame(IncidentWriteAction.WORKFLOW_OPERATE, RestIncidentWriteAction.dispatch(command).action());
+        }
         assertSame(IncidentWriteAction.TUNING_PROPOSE, RestIncidentWriteAction.dispatch("create-tuning-proposal").action());
         assertSame(IncidentWriteAction.TUNING_PROPOSE, RestIncidentWriteAction.dispatch("withdraw-tuning-proposal").action());
         assertSame(IncidentWriteAction.TUNING_REVIEW, RestIncidentWriteAction.dispatch("review-tuning-proposal").action());
