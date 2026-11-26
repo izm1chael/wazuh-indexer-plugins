@@ -190,15 +190,40 @@
           "type": "object",
           "dynamic": "strict",
           "properties": {
-            "target": { "type": "keyword", "ignore_above": 1024 },
-            "offered_by": { "type": "keyword", "index": false, "doc_values": false },
-            "offered_at": { "type": "date", "format": "strict_date_time", "index": false, "doc_values": false }
+            "target": {
+              "type": "keyword",
+              "ignore_above": 1024
+            },
+            "offered_by": {
+              "type": "keyword",
+              "index": false,
+              "doc_values": false
+            },
+            "offered_at": {
+              "type": "date",
+              "format": "strict_date_time",
+              "index": false,
+              "doc_values": false
+            }
           }
         },
-        "tags": { "type": "keyword", "ignore_above": 64 },
-        "incident_relations": { "type": "object", "enabled": false },
-        "evidence_register": { "type": "object", "enabled": false },
+        "tags": {
+          "type": "keyword",
+          "ignore_above": 64
+        },
+        "incident_relations": {
+          "type": "object",
+          "enabled": false
+        },
+        "evidence_register": {
+          "type": "object",
+          "enabled": false
+        },
         "tuning_proposals": {
+          "type": "object",
+          "enabled": false
+        },
+        "automation_runs": {
           "type": "object",
           "enabled": false
         }
