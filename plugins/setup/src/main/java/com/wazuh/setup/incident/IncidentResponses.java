@@ -27,9 +27,9 @@ import java.util.Set;
 /** Approval and manual outcome records only. No executable commands, endpoint calls or dispatch. */
 final class IncidentResponses {
     static final int MAX = 50;
-    static final Set<String> TYPES = Set.of("investigate_endpoint", "review_containment", "review_indicator_block", "collect_evidence");
+    static final Set<String> TYPES = Set.of("investigate_endpoint", "review_containment", "review_indicator_block", "collect_evidence", "scan_vulnerability");
     static final Set<String> STATES = Set.of("requested", "approved", "rejected", "cancelled",
-            "reported_completed", "reported_failed", "reported_not_performed");
+            "reported_completed", "reported_failed", "reported_not_performed", "dispatch_reserved", "manager_accepted", "dispatch_unknown");
     private static final Set<String> FIELDS = Set.of("id", "type", "scope", "reason", "state", "requested_by", "requested_at",
             "decided_by", "decided_at", "decision_reason", "finalized_by", "finalized_at", "final_reason", "execution_verified");
     private IncidentResponses() {}
@@ -73,6 +73,8 @@ final class IncidentResponses {
             String requester = text(row.get("requested_by"), 1024);
             java.time.Instant requested = java.time.Instant.parse(text(row.get("requested_at"), 64));
             text(row.get("scope"), 512); text(row.get("reason"), 2048);
+            if ("scan_vulnerability".equals(row.get("type"))) scanScope(row.get("scope"));
+            else if (Set.of("dispatch_reserved", "manager_accepted", "dispatch_unknown").contains(row.get("state"))) throw new IllegalStateException("Invalid dispatch type");
             boolean noDecision = row.get("decided_by") == null && row.get("decided_at") == null && row.get("decision_reason") == null;
             java.time.Instant decided = null;
             if (!noDecision) {
@@ -93,6 +95,7 @@ final class IncidentResponses {
                 case "approved", "rejected" -> !noDecision && noFinal;
                 case "cancelled" -> !noFinal;
                 case "reported_completed", "reported_failed", "reported_not_performed" -> !noDecision && !noFinal;
+                case "dispatch_reserved", "manager_accepted", "dispatch_unknown" -> !noDecision && !noFinal && "scan_vulnerability".equals(row.get("type"));
                 default -> false;
             };
             if (!valid) throw new IllegalStateException("Invalid stored response lifecycle");
@@ -102,7 +105,7 @@ final class IncidentResponses {
     }
 
     static void requireNoOutstanding(Map<String, Object> source) {
-        if (project(source).stream().anyMatch(row -> Set.of("requested", "approved").contains(row.get("state")))) {
+        if (project(source).stream().anyMatch(row -> Set.of("requested", "approved", "dispatch_reserved", "manager_accepted", "dispatch_unknown").contains(row.get("state")))) {
             throw conflict("Resolve or cancel outstanding response requests before closing");
         }
     }
@@ -121,6 +124,7 @@ final class IncidentResponses {
             if (!TYPES.contains(type)) throw invalid("Unknown response intent");
             String scope = text(input.get("scope"), 512);
             String reason = text(input.get("reason"), 2048);
+            if ("scan_vulnerability".equals(type)) { scanScope(scope); if (!scope.equals(input.get("scope"))) throw invalid("Exact scan scope required"); }
             if (rows.stream().anyMatch(row -> Set.of("requested", "approved").contains(row.get("state")) &&
                     type.equals(row.get("type")) && scope.equals(row.get("scope")))) throw conflict("Outstanding matching response request");
             record.put("id", next.get("id") + ":" + revision);
@@ -158,7 +162,8 @@ final class IncidentResponses {
                     kind = "response_cancelled";
                     break;
                 case RECORD_RESPONSE_OUTCOME:
-                    if (!"approved".equals(state)) throw conflict("Approved response required");
+                    if (!Set.of("approved", "dispatch_reserved", "manager_accepted", "dispatch_unknown").contains(state)) throw conflict("Approved response required");
+                    if ("scan_vulnerability".equals(previous.get("type")) && (actor.equals(previous.get("requested_by")) || actor.equals(previous.get("finalized_by")))) throw new OpenSearchStatusException("Independent scan reconciliation reviewer required", RestStatus.FORBIDDEN);
                     String outcome = text(input.get("outcome"), 64);
                     if (!Set.of("completed", "failed", "not_performed").contains(outcome)) throw invalid("Unknown manual outcome");
                     record.put("state", "reported_" + outcome);
@@ -174,6 +179,46 @@ final class IncidentResponses {
         change.put("before", previous); change.put("after", record);
         changes.put("response_request", change);
         return kind;
+    }
+
+    static String scanScope(Object value) {
+        if (!(value instanceof String scope) || !scope.matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}:agent:[0-9]{3,8}"))
+            throw invalid("Expected manager UUID:agent:exact numeric agent ID");
+        if (scope.substring(scope.lastIndexOf(':') + 1).matches("0+")) throw invalid("Manager agent is not eligible");
+        return scope;
+    }
+
+    static Map<String, Object> dispatch(Map<String, Object> next, Map<String, Object> changes, String id,
+            String actor, String now, String manager, Set<String> agents, String outcome) {
+        var rows = project(next);
+        for (int n = 0; n < rows.size(); n++) {
+            var before = rows.get(n);
+            if (!id.equals(before.get("id"))) continue;
+            if (!"scan_vulnerability".equals(before.get("type"))) throw conflict("Scan request required");
+            String scope = scanScope(before.get("scope")), agent = scope.substring(scope.lastIndexOf(':') + 1);
+            if (!scope.equals(manager + ":agent:" + agent) || !agents.contains(agent)) throw new OpenSearchStatusException("Scan target not approved", RestStatus.FORBIDDEN);
+            var record = new LinkedHashMap<>(before);
+            if (outcome == null) {
+                if (!"approved".equals(before.get("state")) || actor.equals(before.get("requested_by")) || actor.equals(before.get("decided_by")) ||
+                        java.time.Instant.parse(now).isAfter(java.time.Instant.parse((String) before.get("decided_at")).plusSeconds(3600)))
+                    throw conflict("Fresh independent scan approval required");
+                record.put("state", "dispatch_reserved");
+                record.put("final_reason", "Dispatch reserved; execution not verified");
+            } else {
+                if (!"dispatch_reserved".equals(before.get("state")) || !actor.equals(before.get("finalized_by")) ||
+                        !Set.of("manager_accepted", "dispatch_unknown").contains(outcome)) throw conflict("Dispatch reservation unavailable");
+                record.put("state", outcome);
+                record.put("final_reason", "manager_accepted".equals(outcome) ? "Runner reported manager acknowledgement; execution not verified" :
+                        "Runner reported ambiguous dispatch; do not retry automatically");
+            }
+            record.put("finalized_by", actor); record.put("finalized_at", now);
+            rows.set(n, record); next.put("response_requests", rows);
+            changes.put("response_request", Map.of("before", before, "after", record));
+            changes.put("soar_response_id", Map.of("before", id, "after", id));
+            changes.put("soar_state", Map.of("before", before.get("state"), "after", record.get("state")));
+            return record;
+        }
+        throw conflict("Scan request unavailable");
     }
 
     private static void exact(Map<String, Object> input, Set<String> fields) {
