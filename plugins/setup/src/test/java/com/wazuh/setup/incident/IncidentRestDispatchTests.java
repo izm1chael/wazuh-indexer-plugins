@@ -28,6 +28,9 @@ public class IncidentRestDispatchTests extends OpenSearchTestCase {
         for (String command : java.util.List.of("offer-handover", "accept-handover", "cancel-handover")) {
             assertSame(IncidentWriteAction.ASSIGN, RestIncidentWriteAction.dispatch(command).action());
         }
+        for (String command : java.util.List.of("set-tags", "add-relation", "remove-relation", "register-evidence", "withdraw-evidence")) {
+            assertSame(IncidentWriteAction.COLLABORATE, RestIncidentWriteAction.dispatch(command).action());
+        }
         assertSame(IncidentWriteAction.UPDATE, RestIncidentWriteAction.dispatch("activate").action());
         assertSame(IncidentWriteAction.CLOSE, RestIncidentWriteAction.dispatch("close").action());
         assertSame(IncidentWriteAction.REOPEN, RestIncidentWriteAction.dispatch("reopen").action());
