@@ -40,9 +40,19 @@ public class IncidentReadServiceTests extends OpenSearchTestCase {
         expectThrows(OpenSearchException.class, () -> new IncidentReadService.Query("all", null, null, null, 50, 123L, null));
     }
 
+    public void testHandoverProjectionOmitsUnexpectedFields() {
+        var result = IncidentReadService.project(Map.of("owner", "alice", "handover",
+                Map.of("target", "bob", "offered_by", "alice", "offered_at", "now", "unexpected", "private")));
+        assertEquals(Map.of("target", "bob", "offered_by", "alice", "offered_at", "now"), result.get("handover"));
+        expectThrows(IllegalStateException.class, () -> IncidentReadService.project(Map.of("owner", "other", "handover",
+                Map.of("target", "bob", "offered_by", "alice", "offered_at", "now"))));
+    }
+
     public void testProjectionNeverLeaksInternalFields() {
         var output = IncidentReadService.project(Map.of("title", "Example", "finding_count", 2,
                 "pending_activity", "sensitive", "findings", "sensitive", "unknown", "sensitive"));
+        assertTrue(output.containsKey("handover"));
+        assertNull(output.remove("handover"));
         assertEquals(Map.of("title", "Example", "finding_count", 2), output);
     }
 }
