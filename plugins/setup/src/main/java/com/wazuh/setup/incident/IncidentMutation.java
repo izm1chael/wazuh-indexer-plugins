@@ -37,7 +37,7 @@ import java.util.UUID;
  */
 public final class IncidentMutation {
     public enum Operation {
-        CREATE, ASSIGN_SELF, UNASSIGN, START_TRIAGE, ACTIVATE, CLOSE, REOPEN, EDIT, ATTACH_FINDING, DETACH_FINDING
+        CREATE, ASSIGN_SELF, UNASSIGN, START_TRIAGE, ACTIVATE, CLOSE, REOPEN, EDIT, ATTACH_FINDING, DETACH_FINDING, ADD_NOTE, CREATE_TASK, COMPLETE_TASK, REOPEN_TASK
     }
 
     private static final Set<String> SEVERITY = Set.of("informational", "low", "medium", "high", "critical");
@@ -70,6 +70,7 @@ public final class IncidentMutation {
         }
         incident.put("findings", List.of());
         incident.put("finding_count", 0);
+        incident.put("tasks", List.of());
         incident.put("revision", 1);
         Map<String, Object> changes = new LinkedHashMap<>();
         incident.forEach((key, value) -> changes.put(key, change(null, value)));
@@ -180,6 +181,23 @@ public final class IncidentMutation {
                 changes.put("finding", change(operation == Operation.ATTACH_FINDING ? null : reference.toMap(),
                         operation == Operation.ATTACH_FINDING ? reference.toMap() : null));
                 set(next, changes, "finding_count", findings.size());
+                break;
+            case ADD_NOTE:
+                only(input, Set.of("body"));
+                // Any authenticated caller with the collaboration action may contribute a note.
+                changes.put("note", change(null, text(input.get("body"), 8192, "note", false)));
+                kind = "note_added";
+                break;
+            case CREATE_TASK:
+            case COMPLETE_TASK:
+            case REOPEN_TASK:
+                requireOwner(owner, actor);
+                IncidentTasks.apply(next, changes, operation, input, actor, now, revision + 1);
+                kind = switch (operation) {
+                    case CREATE_TASK -> "task_created";
+                    case COMPLETE_TASK -> "task_completed";
+                    default -> "task_reopened";
+                };
                 break;
             default:
                 throw invalid("Unsupported mutation");

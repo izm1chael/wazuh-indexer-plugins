@@ -58,6 +58,10 @@ public final class RestIncidentWriteAction extends BaseRestHandler {
             case "reopen" -> new Dispatch(IncidentWriteAction.REOPEN, Operation.REOPEN);
             case "attach-finding" -> new Dispatch(IncidentWriteAction.FINDINGS, Operation.ATTACH_FINDING);
             case "detach-finding" -> new Dispatch(IncidentWriteAction.FINDINGS, Operation.DETACH_FINDING);
+            case "add-note" -> new Dispatch(IncidentWriteAction.COLLABORATE, Operation.ADD_NOTE);
+            case "create-task" -> new Dispatch(IncidentWriteAction.COLLABORATE, Operation.CREATE_TASK);
+            case "complete-task" -> new Dispatch(IncidentWriteAction.COLLABORATE, Operation.COMPLETE_TASK);
+            case "reopen-task" -> new Dispatch(IncidentWriteAction.COLLABORATE, Operation.REOPEN_TASK);
             default -> throw new IllegalArgumentException("Unknown incident command");
         };
     }

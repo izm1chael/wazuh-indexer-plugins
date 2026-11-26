@@ -14,7 +14,8 @@
       "cluster:admin/wazuh/incident/update",
       "cluster:admin/wazuh/incident/close",
       "cluster:admin/wazuh/incident/reopen",
-      "cluster:admin/wazuh/incident/findings"
+      "cluster:admin/wazuh/incident/findings",
+      "cluster:admin/wazuh/incident/collaborate"
     ],
     "index_permissions": [],
     "tenant_permissions": []

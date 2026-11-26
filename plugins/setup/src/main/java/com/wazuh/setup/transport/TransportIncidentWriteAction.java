@@ -129,4 +129,10 @@ public abstract class TransportIncidentWriteAction extends HandledTransportActio
             super(Grant.FINDINGS, transport, filters, writer, threadPool, clusterService);
         }
     }
+    public static final class Collaborate extends TransportIncidentWriteAction {
+        @Inject
+        public Collaborate(TransportService transport, ActionFilters filters, IncidentWriteService writer, ThreadPool threadPool, ClusterService clusterService) {
+            super(Grant.COLLABORATE, transport, filters, writer, threadPool, clusterService);
+        }
+    }
 }
