@@ -73,6 +73,18 @@ public final class IncidentRepository {
         }
     }
 
+    void readCreationActivity(UUID id, ActionListener<Map<String, Object>> listener) {
+        try (ThreadContext.StoredContext ignored = threadPool.getThreadContext().stashContext()) {
+            client.get(new GetRequest(ACTIVITY, id + ":1"), ActionListener.wrap(response -> {
+                if (!response.isExists()) {
+                    listener.onFailure(new OpenSearchStatusException("Creation activity not delivered", RestStatus.CONFLICT));
+                    return;
+                }
+                listener.onResponse(response.getSourceAsMap());
+            }, listener::onFailure));
+        }
+    }
+
     public void create(Map<String, Object> source, ActionListener<Stored> listener) {
         String id = (String) source.get("id");
         UUID.fromString(id);

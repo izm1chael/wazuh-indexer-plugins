@@ -168,6 +168,10 @@
         "tasks": {
           "type": "object",
           "enabled": false
+        },
+        "correlation_origin": {
+          "type": "object",
+          "enabled": false
         }
       }
     }

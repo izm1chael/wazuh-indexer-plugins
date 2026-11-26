@@ -87,6 +87,33 @@ final class CorrelationExecutionLedger {
         }
     }
 
+    /** Separate immutable completion receipt. Does not mutate the reservation or claim a lock. */
+    void complete(Map<String, Object> origin, String actor, ActionListener<Void> listener) {
+        String id = origin.get("id") + ":completed";
+        var expected = new LinkedHashMap<>(origin);
+        expected.put("id", id);
+        expected.put("state", "completed");
+        expected.put("completed_by", actor);
+        var source = new LinkedHashMap<>(expected);
+        source.put("completed_at", clock.instant().toString());
+        IndexRequest request = new IndexRequest(INDEX).id(id).opType(DocWriteRequest.OpType.CREATE)
+                .source(source, XContentType.JSON).setRefreshPolicy(WriteRequest.RefreshPolicy.WAIT_UNTIL);
+        try (ThreadContext.StoredContext ignored = pool.getThreadContext().stashContext()) {
+            client.index(request, ActionListener.wrap(response -> listener.onResponse(null), error -> {
+                if (ExceptionsHelper.status(error) != RestStatus.CONFLICT) { listener.onFailure(error); return; }
+                try (ThreadContext.StoredContext replay = pool.getThreadContext().stashContext()) {
+                    client.get(new GetRequest(INDEX, id), ActionListener.wrap(existing -> {
+                        if (!existing.isExists() || !matches(expected, existing.getSourceAsMap())) {
+                            listener.onFailure(new OpenSearchStatusException("Correlation completion receipt mismatch", RestStatus.CONFLICT));
+                            return;
+                        }
+                        listener.onResponse(null);
+                    }, listener::onFailure));
+                }
+            }));
+        }
+    }
+
     private void verify(Map<String, Object> expected, String id, UUID incidentId, ActionListener<Result> listener) {
         try (ThreadContext.StoredContext ignored = pool.getThreadContext().stashContext()) {
             client.get(new GetRequest(INDEX, id), ActionListener.wrap(response -> {
