@@ -37,7 +37,7 @@ import java.util.UUID;
  */
 public final class IncidentMutation {
     public enum Operation {
-        CREATE, ASSIGN_SELF, UNASSIGN, START_TRIAGE, ACTIVATE, CLOSE, REOPEN, EDIT, ATTACH_FINDING, DETACH_FINDING, ADD_NOTE, CREATE_TASK, COMPLETE_TASK, REOPEN_TASK, REQUEST_RESPONSE, CANCEL_RESPONSE, APPROVE_RESPONSE, REJECT_RESPONSE, RECORD_RESPONSE_OUTCOME, APPLY_PLAYBOOK, RECORD_AI_FEEDBACK, CREATE_TUNING_PROPOSAL, REVIEW_TUNING_PROPOSAL, WITHDRAW_TUNING_PROPOSAL, OFFER_HANDOVER, ACCEPT_HANDOVER, CANCEL_HANDOVER, SET_TAGS, ADD_RELATION, REMOVE_RELATION, REGISTER_EVIDENCE, WITHDRAW_EVIDENCE, START_WORKFLOW, ADVANCE_WORKFLOW, CANCEL_WORKFLOW
+        CREATE, ASSIGN_SELF, UNASSIGN, START_TRIAGE, ACTIVATE, CLOSE, REOPEN, EDIT, ATTACH_FINDING, DETACH_FINDING, ADD_NOTE, CREATE_TASK, COMPLETE_TASK, REOPEN_TASK, REQUEST_RESPONSE, CANCEL_RESPONSE, APPROVE_RESPONSE, REJECT_RESPONSE, RECORD_RESPONSE_OUTCOME, APPLY_PLAYBOOK, RECORD_AI_FEEDBACK, CREATE_TUNING_PROPOSAL, REVIEW_TUNING_PROPOSAL, WITHDRAW_TUNING_PROPOSAL, OFFER_HANDOVER, ACCEPT_HANDOVER, CANCEL_HANDOVER, SET_TAGS, ADD_RELATION, REMOVE_RELATION, REGISTER_EVIDENCE, WITHDRAW_EVIDENCE, START_WORKFLOW, ADVANCE_WORKFLOW, CANCEL_WORKFLOW, SAVE_HUNT_BOOKMARK, WITHDRAW_HUNT_BOOKMARK
     }
 
     private static final Set<String> SEVERITY = Set.of("informational", "low", "medium", "high", "critical");
@@ -78,6 +78,7 @@ public final class IncidentMutation {
         incident.put("playbook_runs", List.of());
         incident.put("automation_runs", List.of());
         incident.put("workflow_runs", List.of());
+        incident.put("hunt_bookmarks", List.of());
         incident.put("ai_feedback_ids", List.of());
         incident.put("tuning_proposals", List.of());
         incident.put("response_requests", List.of());
@@ -268,6 +269,11 @@ public final class IncidentMutation {
                 IncidentAiFeedback.apply(next, changes, input, revision);
                 kind = "ai_feedback_recorded";
                 break;
+            case SAVE_HUNT_BOOKMARK:
+            case WITHDRAW_HUNT_BOOKMARK:
+                requireOwner(owner, actor);
+                kind = IncidentHuntBookmarks.apply(next,changes,operation,input,actor,now,revision+1);
+                break;
             case START_WORKFLOW:
             case ADVANCE_WORKFLOW:
             case CANCEL_WORKFLOW:
@@ -296,6 +302,7 @@ public final class IncidentMutation {
         next.put("updated_at", now);
         next.put("revision", revision + 1);
         next.put("pending_activity", activity(next, kind, changes));
+        if (Set.of(Operation.SAVE_HUNT_BOOKMARK, Operation.WITHDRAW_HUNT_BOOKMARK).contains(operation)) IncidentHuntBookmarks.project(next);
         if (Set.of(Operation.START_WORKFLOW, Operation.ADVANCE_WORKFLOW, Operation.CANCEL_WORKFLOW).contains(operation)) IncidentWorkflowRuns.runs(next);
         return next;
     }
