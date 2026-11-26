@@ -291,6 +291,23 @@ public final class IncidentMutation {
         return next;
     }
 
+    /** Internal SOAR only, never exposed as an ordinary mutation. */
+    static Map<String, Object> dispatchScan(Map<String, Object> current, int expected, String responseId,
+            String actor, Instant at, String manager, Set<String> agents, String outcome) {
+        requireActor(actor);
+        if (!(current.get("revision") instanceof Integer revision) || revision != expected || revision == Integer.MAX_VALUE ||
+                current.get("pending_activity") != null || !Set.of("triaging", "active").contains(current.get("status")) ||
+                at.isBefore(Instant.parse((String) current.get("updated_at")))) throw conflict("Incident changed or unavailable for dispatch");
+        var next = new LinkedHashMap<>(current);
+        var changes = new LinkedHashMap<String, Object>();
+        String now = CLOCK.format(at);
+        IncidentResponses.dispatch(next, changes, responseId, actor, now, manager, agents, outcome);
+        next.put("updated_by", actor); next.put("updated_at", now); next.put("revision", revision + 1);
+        next.put("pending_activity", activity(next, outcome == null ? "soar_dispatch_reserved" : "soar_dispatch_reported", changes));
+        IncidentResponses.project(next);
+        return next;
+    }
+
     /** Internal automation only: never exposed as an ordinary IncidentMutation.Operation. */
     static Map<String, Object> automate(Map<String, Object> current, Map<String, Object> event,
             IncidentAutomationPolicy.Policy policy, String actor, Instant at) {
