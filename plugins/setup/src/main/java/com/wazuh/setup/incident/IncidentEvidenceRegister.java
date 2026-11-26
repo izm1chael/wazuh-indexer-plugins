@@ -115,7 +115,7 @@ final class IncidentEvidenceRegister {
             case ADD_RELATION: {
                 exact(input, Set.of("target_id", "type", "reason"));
                 String target = uuid(input.get("target_id"));
-                if (target.equals(next.get("id")) || !RELATION_TYPES.contains(input.get("type"))) throw invalid("Invalid incident relation");
+                if (target.equals(next.get("id")) || !(input.get("type") instanceof String relationType) || !RELATION_TYPES.contains(relationType)) throw invalid("Invalid incident relation");
                 var rows = relations(next);
                 if (rows.size() >= MAX_RELATIONS || rows.stream().anyMatch(row -> target.equals(row.get("target_id")))) throw conflict("Relation already exists or capacity reached");
                 var row = Map.<String, Object>of("id", id, "target_id", target, "type", input.get("type"),
@@ -134,7 +134,7 @@ final class IncidentEvidenceRegister {
             }
             case REGISTER_EVIDENCE: {
                 exact(input, Set.of("type", "label", "sha256", "custody_reference"));
-                if (!EVIDENCE_TYPES.contains(input.get("type"))) throw invalid("Invalid evidence type");
+                if (!(input.get("type") instanceof String evidenceType) || !EVIDENCE_TYPES.contains(evidenceType)) throw invalid("Invalid evidence type");
                 var rows = evidence(next);
                 String digest = hash(input.get("sha256")), custody = text(input.get("custody_reference"), 256);
                 if (rows.size() >= MAX_EVIDENCE || rows.stream().anyMatch(row -> digest.equals(row.get("sha256")) && custody.equals(row.get("custody_reference")))) throw conflict("Evidence identity already recorded or capacity reached");
