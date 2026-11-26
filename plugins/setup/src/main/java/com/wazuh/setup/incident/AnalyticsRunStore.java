@@ -76,8 +76,11 @@ final class AnalyticsRunStore {
     void status(AnalyticsWindow.Key key, ActionListener<Map<String, Object>> listener) {
         get(key.id(), ActionListener.wrap(reserved -> {
             if (reserved == null) {
-                listener.onResponse(Map.of("run_id", key.id(), "policy_id", key.policy().toString(), "policy_version", key.version(),
-                        "from", key.from().toString(), "until", key.until().toString(), "state", "not_recorded"));
+                get(key.id() + ":completed", ActionListener.wrap(orphan -> {
+                    if (orphan != null) throw conflict();
+                    listener.onResponse(Map.of("run_id", key.id(), "policy_id", key.policy().toString(), "policy_version", key.version(),
+                            "from", key.from().toString(), "until", key.until().toString(), "state", "not_recorded"));
+                }, listener::onFailure));
                 return;
             }
             validate(key, reserved, "reserved");
@@ -86,7 +89,8 @@ final class AnalyticsRunStore {
                     validate(key, done, "completed");
                     var expected = new LinkedHashMap<>(reserved); expected.remove("recorded_at"); expected.put("state", "completed");
                     var actual = new LinkedHashMap<>(done); actual.remove("recorded_at");
-                    if (!IncidentRepository.sameEvent(expected, actual)) throw conflict();
+                    if (!IncidentRepository.sameEvent(expected, actual) ||
+                            java.time.Instant.parse((String) done.get("recorded_at")).isBefore(java.time.Instant.parse((String) reserved.get("recorded_at")))) throw conflict();
                 }
                 var result = new LinkedHashMap<String, Object>();
                 result.put("run_id", key.id());
@@ -112,7 +116,7 @@ final class AnalyticsRunStore {
                 !(source.get("group_count") instanceof Integer groups) || groups < 0 || groups > AnalyticsWindow.MAX_GROUPS ||
                 !(source.get("below_threshold") instanceof Integer below) || below < 0 || below > findings ||
                 groups * 2 > findings - below || (groups == 0) != (findings == below)) throw conflict();
-        java.time.Instant.parse((String) source.get("recorded_at"));
+        if (java.time.Instant.parse((String) source.get("recorded_at")).isBefore(key.until().plusSeconds(AnalyticsWindow.GRACE_SECONDS))) throw conflict();
     }
 
     private void get(String id, ActionListener<Map<String, Object>> listener) {
