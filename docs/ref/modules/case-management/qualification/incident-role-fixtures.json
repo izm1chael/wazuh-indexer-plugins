@@ -1,0 +1,34 @@
+{
+  "incident_reader": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/read"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_analyst": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/read",
+      "cluster:admin/wazuh/incident/create",
+      "cluster:admin/wazuh/incident/assign",
+      "cluster:admin/wazuh/incident/update",
+      "cluster:admin/wazuh/incident/close",
+      "cluster:admin/wazuh/incident/reopen",
+      "cluster:admin/wazuh/incident/findings"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_creator": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/create"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_no_access": {
+    "cluster_permissions": [],
+    "index_permissions": [],
+    "tenant_permissions": []
+  }
+}
