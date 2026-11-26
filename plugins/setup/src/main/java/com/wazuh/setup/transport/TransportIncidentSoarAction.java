@@ -60,14 +60,14 @@ public final class TransportIncidentSoarAction extends HandledTransportAction<In
             Set<String> agents = targets(PluginSettings.SOAR_AGENTS.get(settings));
             Map<?, ?> body;
             try { body = JSON.readValue(request.payload(), Map.class); } catch (Exception e) { throw invalid(); }
-            if (body == null || !body.keySet().equals(Set.of("incident_id", "expected_revision", "response_id", "manager_id", "outcome")) ||
+            if (body == null || !body.keySet().equals(Set.of("incident_id", "expected_revision", "response_id", "manager_id", "scope", "outcome")) ||
                     !manager.equals(body.get("manager_id")) || !(body.get("expected_revision") instanceof Integer revision) || revision < 1 ||
-                    !(body.get("response_id") instanceof String response)) throw invalid();
+                    !(body.get("response_id") instanceof String response) || !(body.get("scope") instanceof String scope) || !agents.stream().anyMatch(agent -> scope.equals(manager + ":agent:" + agent))) throw invalid();
             UUID id = uuid(body.get("incident_id"));
             if (!response.startsWith(id + ":") || !response.substring(37).matches("[1-9][0-9]{0,9}")) throw invalid();
             Object outcome = body.get("outcome");
             if (outcome != null && !Set.of("manager_accepted", "dispatch_unknown").contains(outcome)) throw invalid();
-            service.dispatch(id, revision, response, actor, manager, agents, (String) outcome,
+            service.dispatch(id, revision, response, scope, actor, manager, agents, (String) outcome,
                     ActionListener.wrap(result -> listener.onResponse(new IncidentReadResponse(result)), listener::onFailure));
         } catch (Exception e) { listener.onFailure(e); }
     }
