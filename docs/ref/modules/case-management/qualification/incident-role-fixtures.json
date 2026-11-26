@@ -163,5 +163,26 @@
     ],
     "index_permissions": [],
     "tenant_permissions": []
+  },
+  "incident_automation_reader": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/automation_read"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_automation_author": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/automation_save"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_automation_executor": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/automation_execute"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
   }
 }
