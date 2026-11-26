@@ -1,0 +1,22 @@
+# Example only. Do not install or enable before disposable qualification.
+[Unit]
+Description=Wazuh approved analytics window runner
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=wazuh-analytics
+Group=wazuh-analytics
+UMask=0077
+StateDirectory=wazuh-analytics
+StateDirectoryMode=0700
+EnvironmentFile=/etc/wazuh-analytics/credentials
+ExecStart=/usr/bin/python3 /opt/wazuh-siem/tools/incident_analytics_runner.py --config /etc/wazuh-analytics/runner.json --state /var/lib/wazuh-analytics/cursor.sqlite
+TimeoutStartSec=3600
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
