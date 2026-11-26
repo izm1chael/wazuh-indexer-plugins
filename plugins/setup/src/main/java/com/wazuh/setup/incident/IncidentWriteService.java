@@ -17,6 +17,9 @@
 package com.wazuh.setup.incident;
 
 import org.opensearch.core.action.ActionListener;
+import org.opensearch.OpenSearchStatusException;
+import org.opensearch.ExceptionsHelper;
+import org.opensearch.core.rest.RestStatus;
 
 import java.time.Clock;
 import java.util.LinkedHashMap;
@@ -27,7 +30,7 @@ import java.util.function.Consumer;
 /** Internal writer. The authenticated transport action must supply a trusted actor and
  * operation; the caller never submits an aggregate or an activity document. */
 public final class IncidentWriteService {
-    public record Result(Map<String, Object> incident, boolean activityPending) {}
+    public record Result(Map<String, Object> incident, boolean activityPending, boolean replayed) {}
     private final IncidentRepository repository;
     private final Clock clock;
     private final FindingAccess findingAccess;
@@ -42,13 +45,33 @@ public final class IncidentWriteService {
 
     public void create(Map<String, Object> input, String actor, ActionListener<Result> listener) {
         final Map<String, Object> source;
+        final UUID id;
+        final String fingerprint;
         try {
-            source = IncidentMutation.create(input, UUID.randomUUID(), actor, clock.instant());
+            Map<String, Object> payload = new LinkedHashMap<>(input);
+            UUID key = IncidentRequestIdentity.requireKey(payload.remove("request_id"));
+            id = IncidentRequestIdentity.incidentId(actor, key);
+            source = IncidentMutation.create(payload, id, actor, clock.instant());
+            fingerprint = IncidentRequestIdentity.createFingerprint(source);
+            source.put("create_request_hash", fingerprint);
         } catch (Exception e) {
             listener.onFailure(e);
             return;
         }
-        repository.create(source, ActionListener.wrap(stored -> finish(stored, listener), listener::onFailure));
+        repository.create(source, ActionListener.wrap(stored -> finish(stored, false, listener), error -> {
+            if (ExceptionsHelper.status(error) != RestStatus.CONFLICT) {
+                listener.onFailure(error);
+                return;
+            }
+            repository.get(id, ActionListener.wrap(existing -> {
+                if (!IncidentRequestIdentity.matches(existing.source(), actor, fingerprint)) {
+                    listener.onFailure(new OpenSearchStatusException("Create request ID already used with different content", RestStatus.CONFLICT));
+                    return;
+                }
+                // Return the current incident, not a fabricated replay of the original response.
+                finish(existing, true, listener);
+            }, listener::onFailure));
+        }));
     }
 
     public void command(UUID id, int expectedRevision, IncidentMutation.Operation operation,
@@ -74,12 +97,12 @@ public final class IncidentWriteService {
         repository.get(id, ActionListener.wrap(previous -> {
             Map<String, Object> next = IncidentMutation.apply(previous.source(), operation, input,
                     expectedRevision, actor, clock.instant());
-            repository.commit(previous, next, ActionListener.wrap(stored -> finish(stored, listener), listener::onFailure));
+            repository.commit(previous, next, ActionListener.wrap(stored -> finish(stored, false, listener), listener::onFailure));
         }, listener::onFailure));
     }
 
-    private void finish(IncidentRepository.Stored committed, ActionListener<Result> listener) {
-        repository.deliver(committed, ActionListener.wrap(delivered -> listener.onResponse(publicResult(delivered, false)),
+    private void finish(IncidentRepository.Stored committed, boolean replayed, ActionListener<Result> listener) {
+        repository.deliver(committed, ActionListener.wrap(delivered -> listener.onResponse(publicResult(delivered, false, replayed)),
                 error -> {
                     // A committed aggregate is not a rolled-back write just because delivery failed.
                     try {
@@ -87,15 +110,11 @@ public final class IncidentWriteService {
                     } catch (RuntimeException ignored) {
                         // Reporting failure cannot change mutation outcome.
                     }
-                    listener.onResponse(publicResult(committed, true));
+                    listener.onResponse(publicResult(committed, true, replayed));
                 }));
     }
 
-    private static Result publicResult(IncidentRepository.Stored stored, boolean pending) {
-        Map<String, Object> result = new LinkedHashMap<>(stored.source());
-        result.remove("pending_activity");
-        // Link visibility must be resolved per reader before exposing individual references.
-        result.remove("findings");
-        return new Result(result, pending);
+    private static Result publicResult(IncidentRepository.Stored stored, boolean pending, boolean replayed) {
+        return new Result(IncidentReadService.project(stored.source()), pending, replayed);
     }
 }

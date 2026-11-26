@@ -31,7 +31,7 @@ public final class IncidentWriteResponse extends ActionResponse implements ToXCo
     private final Map<String, Object> body;
 
     public IncidentWriteResponse(IncidentWriteService.Result result) {
-        this.body = Map.of("incident", result.incident(), "activity_delivery", result.activityPending() ? "pending" : "delivered");
+        this.body = Map.of("incident", result.incident(), "activity_delivery", result.activityPending() ? "pending" : "delivered", "replayed", result.replayed());
     }
 
     @SuppressWarnings("unchecked")

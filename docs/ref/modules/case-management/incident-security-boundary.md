@@ -33,3 +33,9 @@ Separate transport actions (or explicit security-plugin-enforced per-command per
 - Success returns `{incident, activity_delivery}`; pending means the mutation committed but delivery is not confirmed. No claim of request idempotency yet.
 - The incident projection omits the pending audit payload and individual finding references. The count remains visible within the single-SOC case read boundary. A later link read API must recheck finding visibility under the reader's own permissions; activity containing reference metadata also requires a redaction policy before exposure.
 - The current implementation bounds each aggregate at 1,000 active references; a subsequent capacity review can migrate to a separate relation index without exposing partial writes.
+
+## Opt-in and create retry contract
+
+The indexer setting `plugins.setup.incidents.enabled` is false by default. REST handlers and index setup are conditional; transport execution separately fails closed. Enable only on an isolated qualification cluster after reviewing actual roles; this is not an RBAC deployment recipe. Disabling does not delete stored data or revoke any pre-existing direct index grants. All nodes must use the same setting.
+
+Create now requires a client-generated canonical UUID `request_id` in the JSON body, retained by the client for the same logical create attempt. The server derives the incident UUID from authenticated actor + key and persists a fingerprint of the validated normalized creation fields atomically with the aggregate. A matching create conflict returns the current incident with `replayed: true`; a changed payload returns 409. No new creation activity is emitted on replay. Ordinary commands still use expected revision and must reload on ambiguous failure. The internal fingerprint is not exposed in read or mutation responses. Never retry a creation with a newly generated key after an ambiguous outcome.
