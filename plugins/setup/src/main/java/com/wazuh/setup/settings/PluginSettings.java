@@ -66,6 +66,8 @@ public class PluginSettings {
     public static final Setting<Boolean> INCIDENTS_ENABLED =
             Setting.boolSetting("plugins.setup.incidents.enabled", false, Setting.Property.NodeScope);
 
+    public static final Setting<Boolean> BEHAVIOUR_ENABLED =
+            Setting.boolSetting("plugins.setup.incidents.behaviour.enabled", false, Setting.Property.NodeScope);
     public static final Setting<Boolean> WORKFLOWS_ENABLED =
             Setting.boolSetting("plugins.setup.incidents.workflows.enabled", false, Setting.Property.NodeScope);
     public static final Setting<Boolean> SOAR_ENABLED =
