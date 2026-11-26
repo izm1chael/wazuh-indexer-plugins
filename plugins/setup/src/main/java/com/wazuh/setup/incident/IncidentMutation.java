@@ -141,7 +141,7 @@ public final class IncidentMutation {
                 requireOwner(owner, actor);
                 if (!"closed".equals(status)) throw conflict("Only closed incidents can reopen");
                 changes.put("reopen_reason", change(null, text(input.get("reason"), 8192, "reason", false)));
-                set(next, changes, "status", "active");
+                set(next, changes, "status", current.get("activated_at") == null ? "triaging" : "active");
                 set(next, changes, "closed_at", null);
                 set(next, changes, "closure", null);
                 set(next, changes, "reopened_at", now);

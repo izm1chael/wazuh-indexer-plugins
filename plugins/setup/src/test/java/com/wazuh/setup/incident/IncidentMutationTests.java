@@ -70,6 +70,18 @@ public class IncidentMutationTests extends OpenSearchTestCase {
         assertEquals(6, reopened.get("revision"));
     }
 
+    public void testReopeningTriageClosureDoesNotInventActivation() {
+        var assigned = apply(create(), IncidentMutation.Operation.ASSIGN_SELF, Map.of(), "analyst");
+        var triage = apply(assigned, IncidentMutation.Operation.START_TRIAGE, Map.of(), "analyst");
+        var closed = apply(triage, IncidentMutation.Operation.CLOSE, Map.of("classification", "false_positive", "reason", "Reviewed"), "analyst");
+        var reopened = apply(closed, IncidentMutation.Operation.REOPEN, Map.of("reason", "New evidence"), "analyst");
+        assertEquals("triaging", reopened.get("status"));
+        assertNull(reopened.get("activated_at"));
+        assertEquals(triage.get("triage_started_at"), reopened.get("triage_started_at"));
+        var active = apply(reopened, IncidentMutation.Operation.ACTIVATE, Map.of(), "analyst");
+        assertNotNull(active.get("activated_at"));
+    }
+
     public void testPendingActivityAndRevisionAreMandatory() {
         var record = create();
         expectThrows(OpenSearchException.class, () -> IncidentMutation.apply(record, IncidentMutation.Operation.ASSIGN_SELF, Map.of(), 1, "analyst", NOW));
