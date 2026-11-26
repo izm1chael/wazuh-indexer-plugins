@@ -52,7 +52,9 @@ final class FindingIntelligence {
         result.put("timestamp", timestamp(first(safe, "@timestamp")));
         result.put("rule_id", first(safe, "wazuh.rule.id", "rule.id"));
         // Distinguish the exact Wazuh rule field from the display fallback for prevalence probes.
-        result.put("wazuh_rule_id", first(safe, "wazuh.rule.id"));
+        result.put("wazuh_rule_id", exactScalar(safe, "wazuh.rule.id", "[A-Za-z0-9_-]{1,128}"));
+        result.put("wazuh_rule_uuid", exactScalar(safe, "wazuh.rule.uuid",
+                "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"));
         result.put("rule_title", first(safe, "wazuh.rule.title", "rule.title", "rule.name"));
         Set<Map<String, String>> entities = new LinkedHashSet<>();
         ENTITY_FIELDS.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
@@ -111,6 +113,23 @@ final class FindingIntelligence {
                 collect(map.get(remaining), path, path.length, out, budget);
             }
         }
+    }
+
+    /** Identity fields must be single unambiguous scalar strings, never first-value projections. */
+    static String exactScalar(Map<String, Object> source, String path, String pattern) {
+        String[] parts = path.split("\\.");
+        Object node = source;
+        for (int n = 0; n < parts.length; n++) {
+            if (!(node instanceof Map<?, ?> map)) return null;
+            String rest = String.join(".", java.util.Arrays.copyOfRange(parts, n, parts.length));
+            if (n < parts.length - 1 && map.containsKey(rest)) {
+                if (map.containsKey(parts[n])) return null;
+                node = map.get(rest);
+                break;
+            }
+            node = map.get(parts[n]);
+        }
+        return node instanceof String value && value.matches(pattern) ? value : null;
     }
 
     private static String timestamp(String value) {

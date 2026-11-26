@@ -44,6 +44,19 @@ public class FindingIntelligenceTests extends OpenSearchTestCase {
         assertEquals(List.of(), result.get("entities"));
     }
 
+    public void testExactRuleIdentityRejectsArraysAndConflictingShapes() {
+        String uuid = "00000000-0000-4000-8000-000000000001";
+        var nested = FindingIntelligence.project(REF, Map.of("wazuh", Map.of("rule", Map.of("id", "123", "uuid", uuid))));
+        assertEquals("123", nested.get("wazuh_rule_id"));
+        assertEquals(uuid, nested.get("wazuh_rule_uuid"));
+        var ambiguous = FindingIntelligence.project(REF, Map.of("wazuh.rule.id", List.of("123", "456"), "wazuh.rule.uuid", List.of(uuid)));
+        assertNull(ambiguous.get("wazuh_rule_id"));
+        assertNull(ambiguous.get("wazuh_rule_uuid"));
+        var mixed = FindingIntelligence.project(REF, Map.of("wazuh.rule.uuid", uuid, "wazuh", Map.of("rule", Map.of("uuid", uuid))));
+        assertNull(mixed.get("wazuh_rule_uuid"));
+        assertNull(FindingIntelligence.project(REF, Map.of("rule.uuid", uuid)).get("wazuh_rule_uuid"));
+    }
+
     public void testFieldTraversalIsBounded() {
         assertEquals(16, FindingIntelligence.values(Map.of("host.ip", java.util.Collections.nCopies(100, "192.0.2.1")), "host.ip").size());
         assertEquals(List.of(), FindingIntelligence.values(Map.of("user.name", "bad\nname"), "user.name"));
