@@ -72,6 +72,9 @@ public abstract class TransportIncidentWriteAction extends HandledTransportActio
                 listener.onFailure(new OpenSearchStatusException("Operation not permitted by transport action", RestStatus.FORBIDDEN));
                 return;
             }
+            if ((request.operation() == Operation.START_WORKFLOW || request.operation() == Operation.ADVANCE_WORKFLOW) &&
+                    !PluginSettings.WORKFLOWS_ENABLED.get(clusterService.getSettings()))
+                throw new OpenSearchStatusException("Executable workflows disabled", RestStatus.FORBIDDEN);
             String actor = IncidentPrincipal.require(threadPool.getThreadContext());
             Map<String, Object> input = JSON.readValue(request.payload(), new TypeReference<Map<String, Object>>() {});
             if (input == null) {
@@ -150,6 +153,11 @@ public abstract class TransportIncidentWriteAction extends HandledTransportActio
     public static final class ResponseOutcome extends TransportIncidentWriteAction {
         @Inject public ResponseOutcome(TransportService transport, ActionFilters filters, IncidentWriteService writer, ThreadPool threadPool, ClusterService clusterService) {
             super(Grant.RESPONSE_OUTCOME, transport, filters, writer, threadPool, clusterService);
+        }
+    }
+    public static final class WorkflowOperate extends TransportIncidentWriteAction {
+        @Inject public WorkflowOperate(TransportService transport, ActionFilters filters, IncidentWriteService writer, ThreadPool threadPool, ClusterService clusterService) {
+            super(Grant.WORKFLOW_OPERATE, transport, filters, writer, threadPool, clusterService);
         }
     }
     public static final class PlaybookApply extends TransportIncidentWriteAction {
