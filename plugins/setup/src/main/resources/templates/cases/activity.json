@@ -1,6 +1,6 @@
 {
   "index_patterns": [
-    "wazuh-case-activity-v1"
+    ".wazuh-case-activity-v1"
   ],
   "priority": 100,
   "template": {
@@ -8,7 +8,8 @@
       "index": {
         "number_of_shards": 1,
         "auto_expand_replicas": "0-1",
-        "refresh_interval": "5s"
+        "refresh_interval": "5s",
+        "hidden": true
       }
     },
     "mappings": {

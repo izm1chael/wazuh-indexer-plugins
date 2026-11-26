@@ -12,7 +12,7 @@ def load(name):
 
 class IncidentTemplatesTest(unittest.TestCase):
     def test_exact_independent_indices(self):
-        for name, index in (("incidents", "wazuh-cases-v1"), ("activity", "wazuh-case-activity-v1")):
+        for name, index in (("incidents", ".wazuh-cases-v1"), ("activity", ".wazuh-case-activity-v1")):
             template = load(name)
             self.assertEqual(template["index_patterns"], [index])
             self.assertNotIn("data_stream", template)

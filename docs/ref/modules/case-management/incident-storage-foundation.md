@@ -6,8 +6,8 @@ The existing findings API and findings retention remain unchanged. A standalone 
 
 | Index | Document identity | Purpose |
 | --- | --- | --- |
-| wazuh-cases-v1 | Server-generated UUID | Current incident aggregate and one pending activity event |
-| wazuh-case-activity-v1 | incident UUID + ":" + logical revision | Immutable lifecycle activity |
+| .wazuh-cases-v1 | Server-generated UUID | Current incident aggregate and one pending activity event |
+| .wazuh-case-activity-v1 | incident UUID + ":" + logical revision | Immutable lifecycle activity |
 
 ## Atomic mutation and activity delivery
 
@@ -20,3 +20,7 @@ The activity record captures actor, server timestamp, action kind and before/aft
 The templates are intentionally not registered in SetupPlugin until the access model is reviewed. Existing broad index permissions must not silently grant incident access. Use dedicated actions and an authenticated server-derived principal; deny arbitrary direct writes, deletes and field spoofing. Explicitly verify the role configuration in the indexer distribution, cross-tenant visibility, finding access, activity immutability and backup/restore before provisioning any real data.
 
 The first implementation supports a single SOC boundary only; team isolation is not claimed. Do not deploy these assets into production. Evidence links, comments, tasks and automation are subsequent schemas. The legacy case metadata remains available as finding triage until a verified migration is implemented.
+
+## Private index naming
+
+Before initial qualification the exact backing names were changed to `.wazuh-cases-v1` and `.wazuh-case-activity-v1` and both templates mark their index hidden. The dotted namespace avoids matching the common existing `wazuh-*` grants. This is defense in depth, not access control: broad wildcard grants, hidden-index access and administrative privileges still require inspection. No deployed-data migration is implemented; these branches have not been qualified or provisioned. If any earlier experimental indices were manually created, stop and inventory them rather than silently creating a second store.

@@ -39,8 +39,8 @@ import java.util.UUID;
  * before entering this repository. Never accept arbitrary source/index from REST.
  */
 public final class IncidentRepository {
-    public static final String INCIDENTS = "wazuh-cases-v1";
-    public static final String ACTIVITY = "wazuh-case-activity-v1";
+    public static final String INCIDENTS = ".wazuh-cases-v1";
+    public static final String ACTIVITY = ".wazuh-case-activity-v1";
 
     public record Stored(Map<String, Object> source, long seqNo, long primaryTerm) {}
     private final Client client;

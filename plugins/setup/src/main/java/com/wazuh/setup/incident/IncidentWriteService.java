@@ -76,7 +76,7 @@ public final class IncidentWriteService {
 
     public void command(UUID id, int expectedRevision, IncidentMutation.Operation operation,
             Map<String, Object> input, String actor, ActionListener<Result> listener) {
-        if (operation == IncidentMutation.Operation.ATTACH_FINDING) {
+        if (operation == IncidentMutation.Operation.ATTACH_FINDING || operation == IncidentMutation.Operation.DETACH_FINDING) {
             final FindingReference reference;
             try {
                 reference = FindingReference.parse(input);
@@ -84,6 +84,8 @@ public final class IncidentWriteService {
                 listener.onFailure(e);
                 return;
             }
+            // Both operations require current finding visibility. Otherwise detach could be a membership oracle.
+            // Expired/restricted link cleanup requires a separate privileged maintenance workflow.
             // This is the first asynchronous request, before repository.get stashes the caller.
             findingAccess.requireVisible(reference, ActionListener.wrap(
                     ignored -> mutate(id, expectedRevision, operation, input, actor, listener), listener::onFailure));
