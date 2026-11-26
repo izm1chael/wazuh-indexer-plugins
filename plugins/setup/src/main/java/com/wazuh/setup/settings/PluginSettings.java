@@ -66,6 +66,16 @@ public class PluginSettings {
     public static final Setting<Boolean> INCIDENTS_ENABLED =
             Setting.boolSetting("plugins.setup.incidents.enabled", false, Setting.Property.NodeScope);
 
+    /** Analytics execution is independent, default off, and limited to an explicitly configured deployment and service principal. */
+    public static final Setting<Boolean> ANALYTICS_ENABLED =
+            Setting.boolSetting("plugins.setup.incidents.analytics.enabled", false, Setting.Property.NodeScope);
+    public static final Setting<String> ANALYTICS_DEPLOYMENT =
+            Setting.simpleString("plugins.setup.incidents.analytics.deployment_id", "", Setting.Property.NodeScope);
+    public static final Setting<String> ANALYTICS_ACTOR =
+            Setting.simpleString("plugins.setup.incidents.analytics.actor", "", Setting.Property.NodeScope);
+    public static final Setting<String> ANALYTICS_POLICIES =
+            Setting.simpleString("plugins.setup.incidents.analytics.policies", "", Setting.Property.NodeScope);
+
     /**
      * Number of times an initialization task that timed out is re-attempted, each attempt separated
      * by {@link PluginSettings#BACKOFF}, before the failure is rethrown and the node shuts down. Zero
