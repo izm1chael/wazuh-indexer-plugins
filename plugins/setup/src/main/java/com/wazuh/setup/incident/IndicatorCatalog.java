@@ -134,7 +134,7 @@ public final class IndicatorCatalog {
             Instant observed = time(observedAt); String provenance = text(source, 256);
             if (sightings.size() >= MAX_SIGHTINGS || now.isBefore(time(row.get("created_at"))) || observed.isAfter(now) ||
                     observed.isBefore(time(row.get("valid_from"))) || !observed.isBefore(time(row.get("valid_until"))) ||
-                    (row.get("revoked_at") != null && !observed.isBefore(time(row.get("revoked_at"))))) throw invalid("Sighting outside elapsed indicator validity or capacity");
+                    (row.get("revoked_at") != null && observed.isAfter(time(row.get("revoked_at"))))) throw invalid("Sighting outside elapsed indicator validity or capacity");
             if (sightings.stream().anyMatch(s -> s.get("withdrawn_at") == null && provenance.equals(s.get("source")) &&
                     observed.toString().equals(s.get("observed_at")))) throw conflict("Sighting already recorded");
             var record = new LinkedHashMap<String, Object>();
@@ -183,7 +183,7 @@ public final class IndicatorCatalog {
             String source = text(raw.get("source"), 256); text(raw.get("recorded_by"), 1024);
             if (observed.isAfter(recorded) || recorded.isBefore(time(row.get("created_at"))) ||
                     observed.isBefore(time(row.get("valid_from"))) || !observed.isBefore(time(row.get("valid_until"))) ||
-                    (row.get("revoked_at") != null && !observed.isBefore(time(row.get("revoked_at"))))) throw invalid("Invalid sighting interval");
+                    (row.get("revoked_at") != null && observed.isAfter(time(row.get("revoked_at"))))) throw invalid("Invalid sighting interval");
             if (raw.get("withdrawn_at") == null) {
                 if (raw.get("withdrawn_by") != null || raw.get("withdrawn_revision") != null || raw.get("withdrawal_reason") != null ||
                         !live.add(source + "\n" + observed)) throw invalid("Duplicate or invalid sighting");
