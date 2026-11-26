@@ -68,6 +68,10 @@ import com.wazuh.setup.transport.TransportIncidentHuntAction;
 import com.wazuh.setup.action.CorrelationPolicyAction;
 import com.wazuh.setup.action.AnalyticsRunAction;
 import com.wazuh.setup.action.IncidentAutomationAction;
+import com.wazuh.setup.action.IncidentSoarAction;
+import com.wazuh.setup.incident.IncidentSoarService;
+import com.wazuh.setup.rest.RestIncidentSoarAction;
+import com.wazuh.setup.transport.TransportIncidentSoarAction;
 import com.wazuh.setup.incident.IncidentAutomationStore;
 import com.wazuh.setup.incident.IncidentAutomationService;
 import com.wazuh.setup.rest.RestIncidentAutomationAction;
@@ -298,7 +302,7 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
                 Clock.systemUTC(), error -> log.warn("Incident activity delivery pending", error));
         IncidentAutomationStore automationStore = new IncidentAutomationStore(client, threadPool, Clock.systemUTC());
         IncidentAutomationService automation = new IncidentAutomationService(client, threadPool, incidents, automationStore, Clock.systemUTC());
-        return List.of(automationStore, automation, this.settingsIndex, this.settingsAdminIndex, this.sessionsIndex, incidentReader, incidentWriter, investigation, new CorrelationPreviewService(client), new AnalyticsExecutionService(client, threadPool, Clock.systemUTC(), incidents), new IncidentHuntService(client), new CorrelationPolicyStore(client, threadPool, Clock.systemUTC()), new IndicatorCatalogStore(client, threadPool, Clock.systemUTC()), new IncidentMetricsService(client, threadPool, Clock.systemUTC()));
+        return List.of(new IncidentSoarService(incidents, Clock.systemUTC()), automationStore, automation, this.settingsIndex, this.settingsAdminIndex, this.sessionsIndex, incidentReader, incidentWriter, investigation, new CorrelationPreviewService(client), new AnalyticsExecutionService(client, threadPool, Clock.systemUTC(), incidents), new IncidentHuntService(client), new CorrelationPolicyStore(client, threadPool, Clock.systemUTC()), new IndicatorCatalogStore(client, threadPool, Clock.systemUTC()), new IncidentMetricsService(client, threadPool, Clock.systemUTC()));
     }
 
     @Override
@@ -411,6 +415,7 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
             handlers.add(new RestIncidentHuntAction());
             handlers.add(new RestCorrelationPolicyAction());
             handlers.add(new RestIncidentAutomationAction());
+            if (PluginSettings.SOAR_ENABLED.get(settings)) handlers.add(new RestIncidentSoarAction());
             if (PluginSettings.ANALYTICS_ENABLED.get(settings)) handlers.add(new RestAnalyticsRunAction());
             handlers.add(new RestIndicatorCatalogAction());
         }
@@ -430,6 +435,7 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
                         PutAiAssistantSessionAction.INSTANCE, TransportPutAiAssistantSessionAction.class),
                 new ActionPlugin.ActionHandler<>(CorrelationPolicyAction.READ, TransportCorrelationPolicyAction.Read.class),
                 new ActionPlugin.ActionHandler<>(AnalyticsRunAction.READ, TransportAnalyticsRunAction.Read.class),
+                new ActionPlugin.ActionHandler<>(IncidentSoarAction.DISPATCH, TransportIncidentSoarAction.class),
                 new ActionPlugin.ActionHandler<>(IncidentAutomationAction.READ, TransportIncidentAutomationAction.Read.class),
                 new ActionPlugin.ActionHandler<>(IncidentAutomationAction.SAVE, TransportIncidentAutomationAction.Save.class),
                 new ActionPlugin.ActionHandler<>(IncidentAutomationAction.EXECUTE, TransportIncidentAutomationAction.Execute.class),
@@ -467,6 +473,7 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
                 PluginSettings.SETTINGS_UPDATE_ENABLED,
                 PluginSettings.INCIDENTS_ENABLED, PluginSettings.ANALYTICS_ENABLED, PluginSettings.ANALYTICS_DEPLOYMENT,
                 PluginSettings.ANALYTICS_ACTOR, PluginSettings.ANALYTICS_POLICIES, PluginSettings.AUTOMATION_ENABLED,
-                PluginSettings.AUTOMATION_ACTOR, PluginSettings.AUTOMATION_POLICY);
+                PluginSettings.AUTOMATION_ACTOR, PluginSettings.AUTOMATION_POLICY, PluginSettings.SOAR_ENABLED, PluginSettings.SOAR_ACTOR,
+                PluginSettings.SOAR_MANAGER, PluginSettings.SOAR_AGENTS);
     }
 }
