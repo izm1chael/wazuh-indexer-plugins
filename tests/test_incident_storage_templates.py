@@ -36,6 +36,16 @@ class IncidentTemplatesTest(unittest.TestCase):
         self.assertFalse(offer["properties"]["offered_by"]["index"])
         self.assertFalse(offer["properties"]["offered_at"]["index"])
 
+    def test_automation_storage_boundaries(self):
+        template = load("automation-policies")
+        self.assertEqual(template["index_patterns"], [".wazuh-incident-automation-v1"])
+        self.assertNotIn("data_stream", template)
+        self.assertTrue(template["template"]["settings"]["index"]["hidden"])
+        self.assertEqual(template["template"]["mappings"]["dynamic"], "strict")
+        self.assertEqual(template["template"]["mappings"]["properties"]["policy"], {"type": "object", "enabled": False})
+        self.assertEqual(load("incidents")["template"]["mappings"]["properties"]["automation_runs"],
+                         {"type": "object", "enabled": False})
+
     def test_analytics_execution_storage_boundaries(self):
         for name, index in (("analytics-runs", ".wazuh-analytics-runs-v1"),
                             ("correlation-execution", ".wazuh-correlation-execution-v1")):
