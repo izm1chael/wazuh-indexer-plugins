@@ -79,6 +79,8 @@ public final class RestIncidentWriteAction extends BaseRestHandler {
             case "withdraw-tuning-proposal" -> new Dispatch(IncidentWriteAction.TUNING_PROPOSE, Operation.WITHDRAW_TUNING_PROPOSAL);
             case "review-tuning-proposal" -> new Dispatch(IncidentWriteAction.TUNING_REVIEW, Operation.REVIEW_TUNING_PROPOSAL);
             case "record-ai-feedback" -> new Dispatch(IncidentWriteAction.AI_FEEDBACK, Operation.RECORD_AI_FEEDBACK);
+            case "save-hunt-bookmark" -> new Dispatch(IncidentWriteAction.COLLABORATE, Operation.SAVE_HUNT_BOOKMARK);
+            case "withdraw-hunt-bookmark" -> new Dispatch(IncidentWriteAction.COLLABORATE, Operation.WITHDRAW_HUNT_BOOKMARK);
             case "start-workflow" -> new Dispatch(IncidentWriteAction.WORKFLOW_OPERATE, Operation.START_WORKFLOW);
             case "advance-workflow" -> new Dispatch(IncidentWriteAction.WORKFLOW_OPERATE, Operation.ADVANCE_WORKFLOW);
             case "cancel-workflow" -> new Dispatch(IncidentWriteAction.WORKFLOW_OPERATE, Operation.CANCEL_WORKFLOW);
