@@ -38,7 +38,7 @@ import java.util.UUID;
 
 /** Read-authorized single-SOC summary API. No caller-defined search DSL or index names. */
 public final class IncidentReadService {
-    private static final Set<String> QUEUES = Set.of("open", "new", "triaging", "active", "closed", "unassigned", "all");
+    private static final Set<String> QUEUES = Set.of("open", "new", "triaging", "active", "closed", "unassigned", "all", "mine", "handover");
     private static final Set<String> SEVERITIES = Set.of("informational", "low", "medium", "high", "critical");
     private static final Set<String> PUBLIC_FIELDS = Set.of("id", "title", "description", "status", "severity",
             "priority", "tlp", "owner", "handover", "created_by", "updated_by", "created_at", "updated_at",
@@ -70,8 +70,8 @@ public final class IncidentReadService {
         repository.get(id, ActionListener.wrap(record -> listener.onResponse(project(record.source())), listener::onFailure));
     }
 
-    public void list(Query query, ActionListener<Map<String, Object>> listener) {
-        SearchRequest request = new SearchRequest(IncidentRepository.INCIDENTS).source(build(query));
+    public void list(Query query, String actor, ActionListener<Map<String, Object>> listener) {
+        SearchRequest request = new SearchRequest(IncidentRepository.INCIDENTS).source(build(query, actor));
         request.allowPartialSearchResults(false);
         try (ThreadContext.StoredContext ignored = threadPool.getThreadContext().stashContext()) {
             client.search(request, ActionListener.wrap(response -> {
@@ -98,14 +98,22 @@ public final class IncidentReadService {
         }
     }
 
-    static SearchSourceBuilder build(Query query) {
+    static SearchSourceBuilder build(Query query) { return build(query, null); }
+
+    static SearchSourceBuilder build(Query query, String actor) {
         BoolQueryBuilder filter = QueryBuilders.boolQuery();
-        if ("open".equals(query.queue()) || "unassigned".equals(query.queue())) {
+        boolean personal = "mine".equals(query.queue()) || "handover".equals(query.queue());
+        if (personal && (actor == null || actor.isBlank() || "_shared".equals(actor))) {
+            throw new OpenSearchStatusException("Authenticated incident principal required", RestStatus.UNAUTHORIZED);
+        }
+        if ("open".equals(query.queue()) || "unassigned".equals(query.queue()) || personal) {
             filter.filter(QueryBuilders.termsQuery("status", "new", "triaging", "active"));
         } else if (!"all".equals(query.queue())) {
             filter.filter(QueryBuilders.termQuery("status", query.queue()));
         }
         if ("unassigned".equals(query.queue())) filter.mustNot(QueryBuilders.existsQuery("owner"));
+        if ("mine".equals(query.queue())) filter.filter(QueryBuilders.termQuery("owner", actor));
+        if ("handover".equals(query.queue())) filter.filter(QueryBuilders.termQuery("handover.target", actor));
         if (query.owner() != null) filter.filter(QueryBuilders.termQuery("owner", query.owner()));
         if (query.severity() != null) filter.filter(QueryBuilders.termQuery("severity", query.severity()));
         if (query.search() != null && !query.search().isBlank()) {
