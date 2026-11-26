@@ -32,10 +32,15 @@ import java.util.List;
 public final class RestIncidentResponseReadAction extends BaseRestHandler {
     @Override public String getName() { return "wazuh_incident_response_read"; }
     @Override public List<Route> routes() {
-        return List.of(new Route(RestRequest.Method.GET, "/_plugins/_setup/incidents/{id}/responses"));
+        return List.of(new Route(RestRequest.Method.GET, "/_plugins/_setup/incidents/{id}/responses"),
+                new Route(RestRequest.Method.GET, "/_plugins/_setup/incidents/{id}/issued-responses"));
     }
     @Override protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
-        var read = new IncidentReadRequest(request.param("id"), null);
+        String id = request.param("id");
+        var read = request.path().endsWith("/issued-responses")
+                ? new IncidentReadRequest(id, null, IncidentReadRequest.View.FINDINGS,
+                        request.paramAsInt("limit", 25), request.paramAsInt("offset", 0), request.paramAsInt("expected_revision", 0))
+                : new IncidentReadRequest(id, null);
         return channel -> client.execute(IncidentResponseReadAction.INSTANCE, read, new RestResponseListener<IncidentReadResponse>(channel) {
             @Override public org.opensearch.rest.RestResponse buildResponse(IncidentReadResponse response) throws Exception {
                 return new BytesRestResponse(RestStatus.OK, response.toXContent(XContentFactory.jsonBuilder(), ToXContent.EMPTY_PARAMS));

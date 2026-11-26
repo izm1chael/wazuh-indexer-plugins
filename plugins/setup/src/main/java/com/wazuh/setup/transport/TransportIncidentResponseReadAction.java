@@ -48,7 +48,12 @@ public final class TransportIncidentResponseReadAction extends HandledTransportA
     @Override protected void doExecute(Task task, IncidentReadRequest request, ActionListener<IncidentReadResponse> listener) {
         try {
             if (!PluginSettings.INCIDENTS_ENABLED.get(cluster.getSettings())) throw new OpenSearchStatusException("Incidents disabled", RestStatus.FORBIDDEN);
-            IncidentPrincipal.require(pool.getThreadContext());
+            String actor = IncidentPrincipal.require(pool.getThreadContext());
+            if (request.view() == IncidentReadRequest.View.FINDINGS && request.id() != null && request.query() == null) {
+                service.issuedResponses(IncidentReadService.canonicalId(request.id()), request.cursor(), request.limit(), request.expectedRevision(), actor,
+                        ActionListener.wrap(body -> listener.onResponse(new IncidentReadResponse(body)), listener::onFailure));
+                return;
+            }
             if (request.id() == null || request.query() != null || request.view() != IncidentReadRequest.View.SUMMARY ||
                     request.limit() != 0 || request.cursor() != 0 || request.expectedRevision() != 0) {
                 throw new OpenSearchStatusException("Exact incident response detail required", RestStatus.BAD_REQUEST);

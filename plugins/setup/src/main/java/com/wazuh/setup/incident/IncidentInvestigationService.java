@@ -79,6 +79,31 @@ public final class IncidentInvestigationService {
         }, listener::onFailure));
     }
 
+    /** Related issued records for one caller-visible, revision-bound finding page. */
+    @SuppressWarnings("unchecked")
+    public void issuedResponses(UUID id, int offset, int limit, int expectedRevision, String actor,
+            ActionListener<Map<String, Object>> listener) {
+        Supplier<ThreadContext.StoredContext> caller = pool.getThreadContext().newRestorableContext(false);
+        findings(id, offset, limit, expectedRevision, actor, ActionListener.wrap(page -> {
+            try (ThreadContext.StoredContext ignored = caller.get()) {
+                if (!actor.equals(IncidentPrincipal.require(pool.getThreadContext()))) {
+                    listener.onFailure(new OpenSearchStatusException("Response caller context lost", RestStatus.FORBIDDEN)); return;
+                }
+                var refs = new java.util.LinkedHashSet<FindingReference>();
+                for (var ref : (List<Map<String, Object>>) page.get("findings")) refs.add(FindingReference.parse(ref));
+                IssuedResponseSearch.search(client, refs, ActionListener.wrap(rows -> {
+                    var result = new LinkedHashMap<String, Object>();
+                    result.put("issued_responses", rows);
+                    result.put("revision", page.get("revision"));
+                    result.put("visible_finding_count", refs.size());
+                    result.put("mode", "exact_visible_finding_page_issued_only");
+                    if (page.containsKey("next_offset")) result.put("next_offset", page.get("next_offset"));
+                    listener.onResponse(result);
+                }, listener::onFailure));
+            }
+        }, listener::onFailure));
+    }
+
     /** Dedicated response-read action is required; ordinary incident reads omit this content. */
     public void responses(UUID id, ActionListener<Map<String, Object>> listener) {
         repository.get(id, ActionListener.wrap(stored -> listener.onResponse(Map.of(
