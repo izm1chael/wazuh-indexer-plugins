@@ -20,7 +20,7 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wazuh.setup.action.IndicatorCatalogAction;
-import com.wazuh.setup.action.IncidentCorrelationRequest;
+import com.wazuh.setup.action.IndicatorCatalogRequest;
 import com.wazuh.setup.action.IncidentReadResponse;
 import com.wazuh.setup.incident.IndicatorCatalogStore;
 import com.wazuh.setup.incident.IncidentPrincipal;
@@ -39,7 +39,7 @@ import java.util.Map;
 import java.util.List;
 import java.util.Set;
 
-public abstract class TransportIndicatorCatalogAction extends HandledTransportAction<IncidentCorrelationRequest, IncidentReadResponse> {
+public abstract class TransportIndicatorCatalogAction extends HandledTransportAction<IndicatorCatalogRequest, IncidentReadResponse> {
     private static final ObjectMapper JSON = new ObjectMapper().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
             .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
     private final boolean write;
@@ -48,11 +48,11 @@ public abstract class TransportIndicatorCatalogAction extends HandledTransportAc
     private final ClusterService cluster;
     protected TransportIndicatorCatalogAction(boolean write, TransportService transport, ActionFilters filters,
             IndicatorCatalogStore store, ThreadPool pool, ClusterService cluster) {
-        super(write ? IndicatorCatalogAction.SAVE_NAME : IndicatorCatalogAction.READ_NAME, transport, filters, IncidentCorrelationRequest::new);
+        super(write ? IndicatorCatalogAction.SAVE_NAME : IndicatorCatalogAction.READ_NAME, transport, filters, IndicatorCatalogRequest::new);
         this.write = write; this.store = store; this.pool = pool; this.cluster = cluster;
     }
 
-    @Override protected void doExecute(Task task, IncidentCorrelationRequest request, ActionListener<IncidentReadResponse> listener) {
+    @Override protected void doExecute(Task task, IndicatorCatalogRequest request, ActionListener<IncidentReadResponse> listener) {
         try {
             if (!PluginSettings.INCIDENTS_ENABLED.get(cluster.getSettings())) throw new OpenSearchStatusException("Incidents disabled", RestStatus.FORBIDDEN);
             String actor = IncidentPrincipal.require(pool.getThreadContext());
