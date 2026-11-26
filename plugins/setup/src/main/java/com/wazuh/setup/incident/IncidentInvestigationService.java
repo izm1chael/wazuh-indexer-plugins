@@ -200,6 +200,7 @@ public final class IncidentInvestigationService {
             var fields = new java.util.HashSet<>(CHANGE_FIELDS);
             if ("ai_feedback_recorded".equals(source.get("kind"))) {
                 fields.addAll(IncidentAiFeedback.FIELDS);
+                fields.add(IncidentAiFeedback.REPORT_HASH);
                 fields.add("feedback_origin"); fields.add("closure_classification_at_feedback");
             }
             for (String field : fields) {

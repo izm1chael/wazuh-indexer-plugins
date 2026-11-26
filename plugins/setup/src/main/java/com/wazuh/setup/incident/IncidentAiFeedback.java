@@ -31,10 +31,17 @@ final class IncidentAiFeedback {
     static final int MAX = 100;
     static final Set<String> FIELDS = Set.of("assessment_id", "assessed_revision", "digest_sha256", "assessment_mode",
             "assessment_rating", "hypothesis_review");
+    static final String REPORT_HASH = "report_sha256";
     private IncidentAiFeedback() {}
 
     static void apply(Map<String, Object> source, Map<String, Object> changes, Map<String, Object> input, int revision) {
-        if (input == null || !input.keySet().equals(FIELDS)) throw invalid("Exact feedback fields required");
+        var allowed = new HashSet<>(FIELDS);
+        allowed.add(REPORT_HASH);
+        if (input == null || !input.keySet().containsAll(FIELDS) || !allowed.containsAll(input.keySet())) {
+            throw invalid("Exact feedback fields required");
+        }
+        if (input.containsKey(REPORT_HASH) && (!(input.get(REPORT_HASH) instanceof String reportHash) ||
+                !reportHash.matches("[a-f0-9]{64}"))) throw invalid("Invalid report hash");
         String id = uuid(input.get("assessment_id"));
         if (!(input.get("assessed_revision") instanceof Integer assessed) || assessed < 1 || assessed != revision) {
             throw conflict("Assessment revision changed; reassess before recording feedback");
@@ -53,6 +60,7 @@ final class IncidentAiFeedback {
         next.add(id);
         source.put("ai_feedback_ids", next);
         for (String field : FIELDS) changes.put(field, change(input.get(field)));
+        if (input.containsKey(REPORT_HASH)) changes.put(REPORT_HASH, change(input.get(REPORT_HASH)));
         changes.put("feedback_origin", change("analyst_attestation"));
         // Closure is independently maintained by incident lifecycle, never by AI feedback.
         if ("closed".equals(source.get("status")) && source.get("closure") instanceof Map<?, ?> closure &&

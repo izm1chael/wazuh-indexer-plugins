@@ -39,7 +39,8 @@ public class IncidentAiFeedbackTests extends OpenSearchTestCase {
         source = apply(source, ASSIGN_SELF, Map.of(), "analyst");
         source = apply(source, START_TRIAGE, Map.of(), "analyst");
         var closed = apply(source, CLOSE, Map.of("classification", "false_positive", "reason", "Investigated"), "analyst");
-        var input = input(closed);
+        var input = new LinkedHashMap<>(input(closed));
+        input.put("report_sha256", "b".repeat(64));
         var result = apply(closed, RECORD_AI_FEEDBACK, input, "analyst");
         assertEquals(closed.get("closure"), result.get("closure"));
         assertEquals(closed.get("closed_at"), result.get("closed_at"));
@@ -47,6 +48,7 @@ public class IncidentAiFeedbackTests extends OpenSearchTestCase {
         @SuppressWarnings("unchecked") var event = (Map<String,Object>) result.get("pending_activity");
         assertEquals("ai_feedback_recorded", event.get("kind"));
         assertTrue(IncidentInvestigationService.projectActivity(event).toString().contains("analyst_attestation"));
+        assertTrue(IncidentInvestigationService.projectActivity(event).toString().contains("report_sha256"));
         var duplicate = new LinkedHashMap<>(input); duplicate.put("assessed_revision", result.get("revision"));
         expectThrows(OpenSearchStatusException.class, () -> apply(result, RECORD_AI_FEEDBACK, duplicate, "analyst"));
         expectThrows(OpenSearchStatusException.class, () -> apply(closed, RECORD_AI_FEEDBACK, input, "other"));
