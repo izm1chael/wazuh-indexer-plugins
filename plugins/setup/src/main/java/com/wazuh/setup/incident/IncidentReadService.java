@@ -120,7 +120,17 @@ public final class IncidentReadService {
 
     static Map<String, Object> project(Map<String, Object> source) {
         Map<String, Object> result = new LinkedHashMap<>();
-        for (String field : PUBLIC_FIELDS) if (source.containsKey(field)) result.put(field, source.get(field));
+        for (String field : PUBLIC_FIELDS) if (!"handover".equals(field) && source.containsKey(field)) result.put(field, source.get(field));
+        Object value = source.get("handover");
+        if (value == null) {
+            result.put("handover", null);
+        } else if (value instanceof Map<?, ?> offer && offer.get("target") instanceof String target
+                && offer.get("offered_by") instanceof String by && offer.get("offered_at") instanceof String at
+                && by.equals(source.get("owner")) && !target.equals(by)) {
+            result.put("handover", Map.of("target", target, "offered_by", by, "offered_at", at));
+        } else {
+            throw new IllegalStateException("Invalid stored handover");
+        }
         return result;
     }
 
