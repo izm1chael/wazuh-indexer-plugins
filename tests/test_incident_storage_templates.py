@@ -36,6 +36,20 @@ class IncidentTemplatesTest(unittest.TestCase):
         self.assertFalse(offer["properties"]["offered_by"]["index"])
         self.assertFalse(offer["properties"]["offered_at"]["index"])
 
+    def test_analytics_execution_storage_boundaries(self):
+        for name, index in (("analytics-runs", ".wazuh-analytics-runs-v1"),
+                            ("correlation-execution", ".wazuh-correlation-execution-v1")):
+            template = load(name)
+            self.assertEqual(template["index_patterns"], [index])
+            self.assertNotIn("data_stream", template)
+            self.assertTrue(template["template"]["settings"]["index"]["hidden"])
+            self.assertEqual(template["template"]["mappings"]["dynamic"], "strict")
+            self.assertNotIn("plugins.index_state_management.policy_id", template["template"]["settings"]["index"])
+        fields = load("analytics-runs")["template"]["mappings"]["properties"]
+        self.assertEqual(set(fields), {"id", "deployment_id", "policy_id", "policy_version", "from", "until",
+                                       "actor", "plan_sha256", "finding_count", "group_count", "below_threshold",
+                                       "state", "recorded_at"})
+
     def test_indicator_catalog_storage_boundary(self):
         template = load("indicators")
         self.assertEqual(template["index_patterns"], [".wazuh-incident-indicators-v1"])
