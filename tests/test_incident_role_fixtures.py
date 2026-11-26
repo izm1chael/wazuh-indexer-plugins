@@ -30,6 +30,7 @@ class IncidentRoleFixturesTest(unittest.TestCase):
             "incident_tuning_propose": ("tuning_propose",),
             "incident_tuning_review": ("tuning_review",),
             "incident_metrics_reader": ("metrics_read",),
+            "incident_hunt_reader": ("hunt_read",),
             "incident_correlation_reviewer": ("correlation_preview",),
             "incident_correlation_policy_reader": ("correlation_policy_read",),
             "incident_correlation_policy_author": ("correlation_policy_read", "correlation_policy_save"),
