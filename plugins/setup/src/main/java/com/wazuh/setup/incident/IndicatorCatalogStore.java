@@ -57,6 +57,16 @@ public final class IndicatorCatalogStore {
         mutate(expected, source -> IndicatorCatalog.revoke(source, expected, id, reason, actor, clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MILLIS)), 1, listener);
     }
 
+    public void sight(int expected, String id, String observedAt, String source, int count, String actor, ActionListener<Map<String, Object>> listener) {
+        mutate(expected, current -> IndicatorCatalog.sight(current, expected, id, observedAt, source, count, actor,
+                clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MILLIS)), 1, listener);
+    }
+
+    public void withdrawSighting(int expected, String id, int sightingRevision, String reason, String actor, ActionListener<Map<String, Object>> listener) {
+        mutate(expected, current -> IndicatorCatalog.withdrawSighting(current, expected, id, sightingRevision, reason, actor,
+                clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MILLIS)), 1, listener);
+    }
+
     private void mutate(int expected, java.util.function.Function<Map<String, Object>, Map<String, Object>> mutation,
             int changed, ActionListener<Map<String, Object>> listener) {
         get(ActionListener.wrap(snapshot -> {
