@@ -31,11 +31,42 @@ import java.util.UUID;
  * The supplied receipts are internal capture results, not proof of ingestion completeness.
  */
 final class CorrelationExecutionCoordinator {
-    private final CorrelationExecutionLedger ledger;
-    private final IncidentRepository incidents;
+    interface LedgerPort {
+        void reserve(UUID deployment, CorrelationPlanner.Group group, ActionListener<CorrelationExecutionLedger.Result> listener);
+        void readReservation(UUID deployment, String id, ActionListener<Map<String, Object>> listener);
+        void complete(Map<String, Object> origin, String actor, ActionListener<Void> listener);
+    }
+    interface IncidentPort {
+        void create(Map<String, Object> source, ActionListener<IncidentRepository.Stored> listener);
+        void get(UUID id, ActionListener<IncidentRepository.Stored> listener);
+        void deliver(IncidentRepository.Stored source, ActionListener<IncidentRepository.Stored> listener);
+        void readCreationActivity(UUID id, ActionListener<Map<String, Object>> listener);
+    }
+
+    private final LedgerPort ledger;
+    private final IncidentPort incidents;
     private final Clock clock;
 
     CorrelationExecutionCoordinator(CorrelationExecutionLedger ledger, IncidentRepository incidents, Clock clock) {
+        this(new LedgerPort() {
+            public void reserve(UUID deployment, CorrelationPlanner.Group group, ActionListener<CorrelationExecutionLedger.Result> listener) {
+                ledger.reserve(deployment, group, listener);
+            }
+            public void readReservation(UUID deployment, String id, ActionListener<Map<String, Object>> listener) {
+                ledger.readReservation(deployment, id, listener);
+            }
+            public void complete(Map<String, Object> origin, String actor, ActionListener<Void> listener) {
+                ledger.complete(origin, actor, listener);
+            }
+        }, new IncidentPort() {
+            public void create(Map<String, Object> source, ActionListener<IncidentRepository.Stored> listener) { incidents.create(source, listener); }
+            public void get(UUID id, ActionListener<IncidentRepository.Stored> listener) { incidents.get(id, listener); }
+            public void deliver(IncidentRepository.Stored source, ActionListener<IncidentRepository.Stored> listener) { incidents.deliver(source, listener); }
+            public void readCreationActivity(UUID id, ActionListener<Map<String, Object>> listener) { incidents.readCreationActivity(id, listener); }
+        }, clock);
+    }
+
+    CorrelationExecutionCoordinator(LedgerPort ledger, IncidentPort incidents, Clock clock) {
         this.ledger = ledger; this.incidents = incidents; this.clock = clock;
     }
 
