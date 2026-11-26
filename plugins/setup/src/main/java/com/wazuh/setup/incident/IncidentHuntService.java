@@ -90,18 +90,44 @@ public final class IncidentHuntService {
     static Map<String, Object> project(Input input, FindingReference reference, Map<String, Object> source) {
         if (source == null) throw incomplete();
         var matched = new TreeSet<String>();
-        // The existing bounded extractor may truncate arrays; reject unconfirmed candidates rather than guessing.
-        for (String value : FindingIntelligence.values(source, input.field())) {
+        // Exact source strings only; reject ambiguous or over-budget extraction rather than guessing.
+        for (String value : exactValues(source, input.field())) {
             if (input.values().contains(value)) matched.add(value);
         }
-        String timestamp = FindingIntelligence.first(source, "@timestamp");
-        if (matched.isEmpty() || timestamp == null) throw incomplete();
+        var timestamps = exactValues(source, "@timestamp");
+        if (matched.isEmpty() || timestamps.size() != 1) throw incomplete();
+        String timestamp = timestamps.iterator().next();
         Instant at;
         try { at = Instant.parse(timestamp); }
         catch (RuntimeException e) { throw incomplete(); }
         if (at.isBefore(input.from()) || !at.isBefore(input.until())) throw incomplete();
         return Map.of("index", reference.index(), "document_id", reference.documentId(),
                 "timestamp", at.toString(), "matched_values", List.copyOf(matched));
+    }
+
+    private static Set<String> exactValues(Map<String, Object> source, String field) {
+        Set<String> result = new HashSet<>();
+        collect(source, field.split("\\."), 0, result, new int[]{256});
+        return result;
+    }
+
+    private static void collect(Object node, String[] path, int offset, Set<String> result, int[] budget) {
+        if (node == null) return;
+        if (--budget[0] < 0) throw incomplete();
+        if (node instanceof List<?> list) {
+            for (Object value : list) collect(value, path, offset, result, budget);
+        } else if (offset == path.length) {
+            if (node instanceof String value) {
+                if (value.length() > 1024 || result.size() >= 128 && !result.contains(value)) throw incomplete();
+                result.add(value);
+            } else throw incomplete();
+        } else if (node instanceof Map<?, ?> map) {
+            String rest = String.join(".", java.util.Arrays.copyOfRange(path, offset, path.length));
+            if (offset < path.length - 1 && map.containsKey(rest)) {
+                if (map.containsKey(path[offset])) throw incomplete();
+                collect(map.get(rest), path, path.length, result, budget);
+            } else collect(map.get(path[offset]), path, offset + 1, result, budget);
+        } else throw incomplete();
     }
 
     public void hunt(Input input, ActionListener<Map<String, Object>> listener) {
