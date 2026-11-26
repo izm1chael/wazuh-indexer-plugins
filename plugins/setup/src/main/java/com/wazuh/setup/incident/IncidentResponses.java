@@ -164,6 +164,7 @@ final class IncidentResponses {
                 case RECORD_RESPONSE_OUTCOME:
                     if (!Set.of("approved", "dispatch_reserved", "manager_accepted", "dispatch_unknown").contains(state)) throw conflict("Approved response required");
                     if ("scan_vulnerability".equals(previous.get("type")) && (actor.equals(previous.get("requested_by")) || actor.equals(previous.get("finalized_by")))) throw new OpenSearchStatusException("Independent scan reconciliation reviewer required", RestStatus.FORBIDDEN);
+                    if ("dispatch_reserved".equals(state) && java.time.Instant.parse(now).isBefore(java.time.Instant.parse((String) previous.get("finalized_at")).plusSeconds(900))) throw conflict("Dispatch may still be in flight; reconcile only after stopping runner and waiting fifteen minutes");
                     String outcome = text(input.get("outcome"), 64);
                     if (!Set.of("completed", "failed", "not_performed").contains(outcome)) throw invalid("Unknown manual outcome");
                     record.put("state", "reported_" + outcome);
