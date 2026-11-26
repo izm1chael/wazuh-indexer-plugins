@@ -37,7 +37,7 @@ import java.util.UUID;
  */
 public final class IncidentMutation {
     public enum Operation {
-        CREATE, ASSIGN_SELF, UNASSIGN, START_TRIAGE, ACTIVATE, CLOSE, REOPEN, EDIT, ATTACH_FINDING, DETACH_FINDING, ADD_NOTE, CREATE_TASK, COMPLETE_TASK, REOPEN_TASK, REQUEST_RESPONSE, CANCEL_RESPONSE, APPROVE_RESPONSE, REJECT_RESPONSE, RECORD_RESPONSE_OUTCOME, APPLY_PLAYBOOK, RECORD_AI_FEEDBACK, CREATE_TUNING_PROPOSAL, REVIEW_TUNING_PROPOSAL, WITHDRAW_TUNING_PROPOSAL, OFFER_HANDOVER, ACCEPT_HANDOVER, CANCEL_HANDOVER
+        CREATE, ASSIGN_SELF, UNASSIGN, START_TRIAGE, ACTIVATE, CLOSE, REOPEN, EDIT, ATTACH_FINDING, DETACH_FINDING, ADD_NOTE, CREATE_TASK, COMPLETE_TASK, REOPEN_TASK, REQUEST_RESPONSE, CANCEL_RESPONSE, APPROVE_RESPONSE, REJECT_RESPONSE, RECORD_RESPONSE_OUTCOME, APPLY_PLAYBOOK, RECORD_AI_FEEDBACK, CREATE_TUNING_PROPOSAL, REVIEW_TUNING_PROPOSAL, WITHDRAW_TUNING_PROPOSAL, OFFER_HANDOVER, ACCEPT_HANDOVER, CANCEL_HANDOVER, SET_TAGS, ADD_RELATION, REMOVE_RELATION, REGISTER_EVIDENCE, WITHDRAW_EVIDENCE
     }
 
     private static final Set<String> SEVERITY = Set.of("informational", "low", "medium", "high", "critical");
@@ -71,6 +71,9 @@ public final class IncidentMutation {
         }
         incident.put("findings", List.of());
         incident.put("finding_count", 0);
+        incident.put("tags", List.of());
+        incident.put("incident_relations", List.of());
+        incident.put("evidence_register", List.of());
         incident.put("tasks", List.of());
         incident.put("playbook_runs", List.of());
         incident.put("ai_feedback_ids", List.of());
@@ -223,6 +226,14 @@ public final class IncidentMutation {
                 changes.put("finding", change(operation == Operation.ATTACH_FINDING ? null : reference.toMap(),
                         operation == Operation.ATTACH_FINDING ? reference.toMap() : null));
                 set(next, changes, "finding_count", findings.size());
+                break;
+            case SET_TAGS:
+            case ADD_RELATION:
+            case REMOVE_RELATION:
+            case REGISTER_EVIDENCE:
+            case WITHDRAW_EVIDENCE:
+                requireOwner(owner, actor);
+                kind = IncidentEvidenceRegister.apply(next, changes, operation, input, actor, now, revision + 1);
                 break;
             case ADD_NOTE:
                 only(input, Set.of("body"));
