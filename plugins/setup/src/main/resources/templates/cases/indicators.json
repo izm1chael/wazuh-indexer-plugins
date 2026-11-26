@@ -1,0 +1,29 @@
+{
+  "index_patterns": [
+    ".wazuh-incident-indicators-v1"
+  ],
+  "priority": 100,
+  "template": {
+    "settings": {
+      "index": {
+        "number_of_shards": 1,
+        "auto_expand_replicas": "0-1",
+        "refresh_interval": "5s",
+        "hidden": true
+      }
+    },
+    "mappings": {
+      "dynamic": "strict",
+      "date_detection": false,
+      "properties": {
+        "revision": {
+          "type": "integer"
+        },
+        "indicators": {
+          "type": "object",
+          "enabled": false
+        }
+      }
+    }
+  }
+}
