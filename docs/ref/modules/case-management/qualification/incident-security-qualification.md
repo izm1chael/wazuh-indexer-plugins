@@ -1,11 +1,11 @@
 # Disposable security qualification
 
-These are test fixtures, not a production role replacement. Do not run securityadmin or overwrite the installed roles file. Create disposable identities in an isolated RC2 cluster; map each to the explicit role fixture plus only the minimal dashboard login and finding read permissions required by the scenario. Inspect the UNION of effective roles (including built-in roles, aliases and backend-role mappings). No ordinary test identity may directly read or write either hidden incident index. Existing privileged administrator identities are outside the analyst threat model.
+These are test fixtures, not a production role replacement. Do not run securityadmin or overwrite the installed roles file. Create disposable identities in an isolated RC2 cluster; map each to the explicit role fixture plus only the minimal dashboard login and finding read permissions required by the scenario. Inspect the UNION of effective roles (including built-in roles, aliases and backend-role mappings). No ordinary test identity may directly read or write any hidden incident or policy index. Existing privileged administrator identities are outside the analyst threat model.
 
 ## Activation and control cases
 
 1. With both flags omitted, verify the original Case Management UI works; incident REST routes are unavailable, incident transport actions deny execution, and fresh clusters have no incident indices.
-2. Enable the indexer flag on every node and the dashboard flag only on the isolated deployment. Check setup creates exactly the two hidden strict indices, no findings retention policy is attached, and restart does not wipe data.
+2. Enable the indexer flag on every node and the dashboard flag only on the isolated deployment. Check setup creates exactly the three enabled hidden strict indices (incident, activity and correlation policy; the execution ledger is staged and must not be provisioned), no findings retention policy is attached, and restart does not wipe data.
 3. Confirm the role fixtures resolve to the registered action names, and the current-user dashboard client propagates the authenticated user.
 4. Create a test incident as the analyst, record its UUID and revision. Use synthetic findings in two separate document-level security scopes.
 
@@ -49,3 +49,9 @@ Record exact artifact SHAs, node settings, role definitions and effective-role i
 - Use the dedicated disposable correlation reviewer role, plus narrowly scoped finding search permissions. No default role is changed. Verify reader-only, analyst without preview grant, and no-access identities cannot invoke the preview. A preview grant alone must not bypass finding access.
 - Under DLS/FLS, inspect that only permitted matching hits and permitted source fields influence results. In particular test a filtered rule field used in the query, redacted identity fields, hidden data streams and document references. Block rollout if matching/count behavior reveals restricted facts.
 - Verify a full aligned interval, an invalid unaligned interval, 1,000 vs 1,001 matches, missing stream, unavailable shard, timeouts, rule UUID case/format, mixed representations and stable replay/group IDs. Confirm zero incident, activity, policy or evidence writes. A successful search does not prove all events arrived.
+
+### Saved policy and staged reservation scenarios
+
+- Verify the separate policy read/save grants. A preview reviewer without policy grants cannot save or load definitions; a policy reader cannot save; an author cannot automatically execute, nor search findings without the separate preview and finding permissions. Test direct access to the policy index with each role, including wildcard/hidden expansion.
+- Save a definition, repeat with rule order reversed and verify exactly one version document and the original author/time. Different content with the same UUID/version must return 409. A new version may be saved but never changes the old version or activates it. Reject supplied actor, mode, index, unknown fields, duplicate rule IDs and invalid version/window/threshold. Verify read by exact version and not-found handling. Test parallel conflicting saves.
+- No policy mutation or preview may provision the staged execution ledger, write an execution reservation or create an incident. Verify the reserved deterministic identity separately with synthetic groups on a disposable ledger: same group and deployment/membership replay; reordered references replay; changed membership conflicts; different deployment produces a different incident UUID. The ledger is not registered and has no terminal outcome mechanism. Do not infer completion or execution safety from successful reservation.
