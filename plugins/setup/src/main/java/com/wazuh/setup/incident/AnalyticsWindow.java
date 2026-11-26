@@ -88,6 +88,13 @@ final class AnalyticsWindow {
         return new Plan(key, hash(parts), refs.size(), preview.eligible().size(), preview.belowThreshold());
     }
 
+    static String policyFingerprint(CorrelationPlanner.Policy policy) {
+        var parts = new ArrayList<String>(List.of("wazuh-analytics-policy-v1", policy.id().toString(),
+                Integer.toString(policy.version()), Integer.toString(policy.windowMinutes()), Integer.toString(policy.minimumFindings())));
+        policy.allowedRules().stream().map(UUID::toString).sorted().forEach(parts::add);
+        return hash(parts);
+    }
+
     private static String hash(List<String> parts) {
         try {
             var digest = MessageDigest.getInstance("SHA-256");
