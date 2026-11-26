@@ -230,6 +230,10 @@
         "workflow_runs": {
           "type": "object",
           "enabled": false
+        },
+        "hunt_bookmarks": {
+          "type": "object",
+          "enabled": false
         }
       }
     }
