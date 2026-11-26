@@ -184,5 +184,12 @@
     ],
     "index_permissions": [],
     "tenant_permissions": []
+  },
+  "incident_soar_dispatcher": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/soar_dispatch"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
   }
 }
