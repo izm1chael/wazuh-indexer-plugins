@@ -37,7 +37,7 @@ import java.util.UUID;
  */
 public final class IncidentMutation {
     public enum Operation {
-        CREATE, ASSIGN_SELF, UNASSIGN, START_TRIAGE, ACTIVATE, CLOSE, REOPEN, EDIT, ATTACH_FINDING, DETACH_FINDING, ADD_NOTE, CREATE_TASK, COMPLETE_TASK, REOPEN_TASK, REQUEST_RESPONSE, CANCEL_RESPONSE, APPROVE_RESPONSE, REJECT_RESPONSE, RECORD_RESPONSE_OUTCOME, APPLY_PLAYBOOK, RECORD_AI_FEEDBACK, CREATE_TUNING_PROPOSAL, REVIEW_TUNING_PROPOSAL, WITHDRAW_TUNING_PROPOSAL
+        CREATE, ASSIGN_SELF, UNASSIGN, START_TRIAGE, ACTIVATE, CLOSE, REOPEN, EDIT, ATTACH_FINDING, DETACH_FINDING, ADD_NOTE, CREATE_TASK, COMPLETE_TASK, REOPEN_TASK, REQUEST_RESPONSE, CANCEL_RESPONSE, APPROVE_RESPONSE, REJECT_RESPONSE, RECORD_RESPONSE_OUTCOME, APPLY_PLAYBOOK, RECORD_AI_FEEDBACK, CREATE_TUNING_PROPOSAL, REVIEW_TUNING_PROPOSAL, WITHDRAW_TUNING_PROPOSAL, OFFER_HANDOVER, ACCEPT_HANDOVER, CANCEL_HANDOVER
     }
 
     private static final Set<String> SEVERITY = Set.of("informational", "low", "medium", "high", "critical");
@@ -61,6 +61,7 @@ public final class IncidentMutation {
         incident.put("priority", choice(input.getOrDefault("priority", "medium"), PRIORITY, "priority"));
         incident.put("tlp", choice(input.getOrDefault("tlp", "TLP:AMBER"), TLP, "tlp"));
         incident.put("owner", null);
+        incident.put("handover", null);
         incident.put("created_by", actor);
         incident.put("updated_by", actor);
         incident.put("created_at", now);
@@ -112,8 +113,41 @@ public final class IncidentMutation {
             case UNASSIGN:
                 only(input, Set.of());
                 if (!"new".equals(status) || !actor.equals(owner)) throw conflict("Only an owner can return a new incident to the queue");
+                if (current.get("handover") != null) throw conflict("Resolve handover first");
                 set(next, changes, "owner", null);
                 kind = "assign";
+                break;
+            case OFFER_HANDOVER:
+                only(input, Set.of("target", "reason"));
+                requireOwner(owner, actor);
+                if (current.get("handover") != null) throw conflict("Handover already pending");
+                String target = text(input.get("target"), 1024, "target", false);
+                if (!target.equals(input.get("target")) || target.equals(actor) || "_shared".equals(target)
+                        || target.chars().anyMatch(Character::isISOControl)) throw invalid("Invalid handover target");
+                set(next, changes, "handover", Map.of("target", target, "offered_by", actor, "offered_at", now));
+                changes.put("handover_target", change(null, target));
+                changes.put("handover_reason", change(null, text(input.get("reason"), 8192, "reason", false)));
+                kind = "handover_offered";
+                break;
+            case ACCEPT_HANDOVER:
+            case CANCEL_HANDOVER:
+                only(input, Set.of("reason"));
+                if (!(current.get("handover") instanceof Map<?, ?> offer) ||
+                        !(offer.get("target") instanceof String recipient) ||
+                        !Objects.equals(offer.get("offered_by"), owner) || owner == null) {
+                    throw conflict("No valid pending handover");
+                }
+                if (operation == Operation.ACCEPT_HANDOVER) {
+                    if (!actor.equals(recipient)) throw new OpenSearchStatusException("Handover recipient required", RestStatus.FORBIDDEN);
+                    set(next, changes, "owner", actor);
+                    kind = "handover_accepted";
+                } else {
+                    if (!actor.equals(owner) && !actor.equals(recipient)) throw new OpenSearchStatusException("Handover participant required", RestStatus.FORBIDDEN);
+                    kind = "handover_cancelled";
+                }
+                changes.put("handover_target", change(recipient, null));
+                changes.put("handover_reason", change(null, text(input.get("reason"), 8192, "reason", false)));
+                set(next, changes, "handover", null);
                 break;
             case START_TRIAGE:
                 only(input, Set.of());
@@ -135,6 +169,7 @@ public final class IncidentMutation {
                 only(input, Set.of("classification", "reason"));
                 requireOwner(owner, actor);
                 if (!"triaging".equals(status) && !"active".equals(status)) throw conflict("Triage before closing");
+                if (current.get("handover") != null) throw conflict("Resolve handover before closing");
                 IncidentResponses.requireNoOutstanding(current);
                 set(next, changes, "status", "closed");
                 set(next, changes, "closed_at", now);
