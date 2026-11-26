@@ -66,6 +66,14 @@ public class PluginSettings {
     public static final Setting<Boolean> INCIDENTS_ENABLED =
             Setting.boolSetting("plugins.setup.incidents.enabled", false, Setting.Property.NodeScope);
 
+    public static final Setting<Boolean> BEHAVIOUR_OBSERVATIONS_ENABLED =
+            Setting.boolSetting("plugins.setup.incidents.behaviour.observations.enabled", false, Setting.Property.NodeScope);
+    public static final Setting<Boolean> BEHAVIOUR_PROMOTION_ENABLED =
+            Setting.boolSetting("plugins.setup.incidents.behaviour.promotion.enabled", false, Setting.Property.NodeScope);
+    public static final Setting<String> BEHAVIOUR_PUBLISHER =
+            Setting.simpleString("plugins.setup.incidents.behaviour.publisher", "", Setting.Property.NodeScope);
+    public static final Setting<String> BEHAVIOUR_SCOPES =
+            Setting.simpleString("plugins.setup.incidents.behaviour.approved_scopes", "", Setting.Property.NodeScope);
     public static final Setting<Boolean> RULE_BEHAVIOUR_ENABLED =
             Setting.boolSetting("plugins.setup.incidents.behaviour.rule.enabled", false, Setting.Property.NodeScope);
     public static final Setting<Boolean> BEHAVIOUR_ENABLED =
