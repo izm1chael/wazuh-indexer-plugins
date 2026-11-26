@@ -67,8 +67,17 @@ public final class CorrelationPreviewService {
                         "wazuh.rule.uuid", "rule.uuid"}, new String[0]);
     }
 
+    record Versioned(CorrelationPlanner.Candidate candidate, long seqNo, long primaryTerm) {}
+    record Scan(CorrelationPlanner.Preview preview, List<Versioned> candidates) {}
+
     public void preview(Input input, ActionListener<Map<String, Object>> listener) {
-        SearchRequest request = new SearchRequest(FINDINGS).source(build(input));
+        scan(input, CorrelationPlanner.MAX_BATCH, ActionListener.wrap(result -> listener.onResponse(project(input, result.preview())), listener::onFailure));
+    }
+
+    /** Source scan always uses the caller context. Versioned observations are internal only. */
+    void scan(Input input, int limit, ActionListener<Scan> listener) {
+        if (limit < 1 || limit > CorrelationPlanner.MAX_BATCH) throw new IllegalArgumentException("Invalid scan limit");
+        SearchRequest request = new SearchRequest(FINDINGS).source(build(input).size(limit + 1).seqNoAndPrimaryTerm(true));
         request.allowPartialSearchResults(false);
         request.indicesOptions(org.opensearch.action.support.IndicesOptions.strictExpandOpen());
         client.search(request, ActionListener.wrap(response -> {
@@ -77,16 +86,18 @@ public final class CorrelationPreviewService {
                     hits.getTotalHits() == null ||
                     hits.getTotalHits().relation != org.apache.lucene.search.TotalHits.Relation.EQUAL_TO ||
                     hits.getTotalHits().value != hits.getHits().length ||
-                    hits.getHits().length > CorrelationPlanner.MAX_BATCH) {
+                    hits.getHits().length > limit) {
                 listener.onFailure(new OpenSearchStatusException(
-                        "Correlation preview incomplete or exceeds 1000 findings; narrow the range", RestStatus.CONFLICT));
+                        "Correlation scan incomplete or exceeds configured finding budget", RestStatus.CONFLICT));
                 return;
             }
-            List<CorrelationPlanner.Candidate> candidates = new ArrayList<>();
+            List<Versioned> candidates = new ArrayList<>();
             for (var hit : hits.getHits()) {
-                candidates.add(CorrelationPlanner.extract(new FindingReference(hit.getIndex(), hit.getId()), hit.getSourceAsMap()));
+                candidates.add(new Versioned(CorrelationPlanner.extract(new FindingReference(hit.getIndex(), hit.getId()), hit.getSourceAsMap()),
+                        hit.getSeqNo(), hit.getPrimaryTerm()));
             }
-            listener.onResponse(project(input, CorrelationPlanner.plan(input.policy(), candidates, input.from(), input.until())));
+            listener.onResponse(new Scan(CorrelationPlanner.plan(input.policy(), candidates.stream().map(Versioned::candidate).toList(),
+                    input.from(), input.until()), List.copyOf(candidates)));
         }, listener::onFailure));
     }
 
