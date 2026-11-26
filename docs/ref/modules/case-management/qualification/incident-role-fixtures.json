@@ -219,5 +219,33 @@
     ],
     "index_permissions": [],
     "tenant_permissions": []
+  },
+  "incident_behaviour_observation_publisher": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/behaviour_publish"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_behaviour_observation_reader": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/behaviour_observation_read"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_behaviour_observation_reviewer": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/behaviour_review"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_behaviour_observation_promoter": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/behaviour_promote"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
   }
 }
