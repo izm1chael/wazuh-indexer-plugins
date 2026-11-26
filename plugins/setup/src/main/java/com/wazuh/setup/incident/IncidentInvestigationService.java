@@ -108,6 +108,7 @@ public final class IncidentInvestigationService {
     public void responses(UUID id, ActionListener<Map<String, Object>> listener) {
         repository.get(id, ActionListener.wrap(stored -> listener.onResponse(Map.of(
                 "responses", IncidentResponses.project(stored.source()),
+                "workflow_runs", IncidentWorkflowRuns.view(stored.source()),
                 "observed_revision", stored.source().get("revision"),
                 "activity_pending", stored.source().get("pending_activity") != null,
                 "mode", "governed_response_tracking")), listener::onFailure));
@@ -200,6 +201,7 @@ public final class IncidentInvestigationService {
         Map<String, Object> safe = new LinkedHashMap<>();
         if (source.get("changes") instanceof Map<?, ?> changes) {
             var fields = new java.util.HashSet<>(CHANGE_FIELDS);
+            if (Set.of("workflow_started", "workflow_advanced", "workflow_failed", "workflow_completed", "workflow_cancelled").contains(source.get("kind"))) fields.addAll(Set.of("workflow_id", "workflow_stage"));
             if (Set.of("soar_dispatch_reserved", "soar_dispatch_reported").contains(source.get("kind"))) fields.addAll(Set.of("soar_response_id", "soar_state"));
             if ("automation_applied".equals(source.get("kind"))) fields.addAll(Set.of("automation_policy_id", "automation_policy_version", "automation_rule_id", "automation_trigger_revision", "automation_changed_fields"));
             if ("ai_feedback_recorded".equals(source.get("kind"))) {
