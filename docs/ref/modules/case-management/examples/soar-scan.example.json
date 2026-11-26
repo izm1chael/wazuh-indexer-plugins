@@ -1,0 +1,12 @@
+{
+  "indexer": "https://indexer.example.invalid:9200",
+  "indexer_ca": "/etc/wazuh-soar/indexer-ca.pem",
+  "indexer_user": "wazuh-soar-runner",
+  "manager": "https://manager.example.invalid:55000",
+  "manager_ca": "/etc/wazuh-soar/manager-ca.pem",
+  "manager_user": "wazuh-soar-scan",
+  "manager_id": "00000000-0000-4000-8000-000000000002",
+  "agents": {
+    "001": "2026-11-25T12:00:00Z"
+  }
+}
