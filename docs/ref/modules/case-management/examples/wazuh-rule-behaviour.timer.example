@@ -1,0 +1,14 @@
+# Example only. Not installed or enabled by the plugin.
+[Unit]
+Description=Check due Wazuh rule behaviour observation
+
+[Timer]
+OnCalendar=*-*-* 00:10:00 UTC
+OnCalendar=*-*-* 06:10:00 UTC
+OnCalendar=*-*-* 12:10:00 UTC
+OnCalendar=*-*-* 18:10:00 UTC
+Persistent=true
+Unit=wazuh-rule-behaviour.service
+
+[Install]
+WantedBy=timers.target
