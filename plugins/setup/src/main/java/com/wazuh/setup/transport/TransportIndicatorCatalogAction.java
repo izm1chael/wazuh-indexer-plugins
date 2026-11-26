@@ -72,6 +72,13 @@ public abstract class TransportIndicatorCatalogAction extends HandledTransportAc
             } else if ("revoke".equals(body.get("operation")) && body.keySet().equals(Set.of("operation", "expected_revision", "id", "reason"))
                     && body.get("id") instanceof String id && body.get("reason") instanceof String reason) {
                 store.revoke(revision, id, reason, actor, result);
+            } else if ("record-sighting".equals(body.get("operation")) && body.keySet().equals(Set.of("operation", "expected_revision", "id", "observed_at", "source", "count"))
+                    && body.get("id") instanceof String id && body.get("observed_at") instanceof String observed &&
+                    body.get("source") instanceof String source && body.get("count") instanceof Integer count) {
+                store.sight(revision, id, observed, source, count, actor, result);
+            } else if ("withdraw-sighting".equals(body.get("operation")) && body.keySet().equals(Set.of("operation", "expected_revision", "id", "sighting_revision", "reason"))
+                    && body.get("id") instanceof String id && body.get("sighting_revision") instanceof Integer sightingRevision && body.get("reason") instanceof String reason) {
+                store.withdrawSighting(revision, id, sightingRevision, reason, actor, result);
             } else throw invalid();
         } catch (Exception e) { listener.onFailure(e); }
     }
