@@ -27,7 +27,7 @@ import com.wazuh.setup.incident.IncidentReadService;
 
 /** Exactly one detail or queue query; validated again at the transport boundary. */
 public final class IncidentReadRequest extends ActionRequest {
-    public enum View { SUMMARY, ACTIVITY, FINDINGS }
+    public enum View { SUMMARY, ACTIVITY, FINDINGS, COLLABORATION }
     private final View view;
     private final int limit;
     private final int cursor;
@@ -87,6 +87,7 @@ public final class IncidentReadRequest extends ActionRequest {
         if ((id == null) == (query == null)) errors.addValidationError("Exactly one incident detail or queue query required");
         if (view == null || (view != View.SUMMARY && id == null)) errors.addValidationError("Investigation view requires an incident ID");
         if (view == View.ACTIVITY && (limit < 1 || limit > 100 || cursor < 0 || expectedRevision != 0)) errors.addValidationError("Invalid activity page");
+        if (view == View.COLLABORATION && (limit < 1 || limit > 50 || cursor < 0 || expectedRevision != 0)) errors.addValidationError("Invalid collaboration page");
         if (view == View.FINDINGS && (limit < 1 || limit > 25 || cursor < 0 || cursor > 1000 || expectedRevision < 0 || (cursor > 0 && expectedRevision == 0))) errors.addValidationError("Invalid findings page");
         if (view == View.SUMMARY && (limit != 0 || cursor != 0 || expectedRevision != 0)) errors.addValidationError("Unexpected investigation parameters");
         if (id != null) {

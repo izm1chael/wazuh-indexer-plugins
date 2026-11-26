@@ -63,6 +63,7 @@ public final class TransportIncidentReadAction extends HandledTransportAction<In
                 ActionListener<Map<String, Object>> result = ActionListener.wrap(
                         page -> listener.onResponse(new IncidentReadResponse(page)), listener::onFailure);
                 if (request.view() == IncidentReadRequest.View.ACTIVITY) investigation.activity(id, request.cursor(), request.limit(), result);
+                else if (request.view() == IncidentReadRequest.View.COLLABORATION) investigation.collaboration(id, request.cursor(), request.limit(), result);
                 else investigation.findings(id, request.cursor(), request.limit(), request.expectedRevision(), actor, result);
                 return;
             }

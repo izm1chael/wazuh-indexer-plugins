@@ -79,6 +79,73 @@ public final class IncidentInvestigationService {
         }, listener::onFailure));
     }
 
+    /** Notes live in delivered immutable activity, rather than an ever-growing aggregate array. */
+    public void collaboration(UUID id, int before, int limit, ActionListener<Map<String, Object>> listener) {
+        repository.get(id, ActionListener.wrap(stored -> {
+            int revision = (int) stored.source().get("revision");
+            SearchRequest request = new SearchRequest(IncidentRepository.ACTIVITY).source(
+                    notesQuery(id, revision, before, limit));
+            request.allowPartialSearchResults(false);
+            try (ThreadContext.StoredContext ignored = pool.getThreadContext().stashContext()) {
+                client.search(request, ActionListener.wrap(response -> {
+                    if (response.isTimedOut() || response.getFailedShards() > 0) {
+                        listener.onFailure(new OpenSearchStatusException("Incomplete note search", RestStatus.SERVICE_UNAVAILABLE));
+                        return;
+                    }
+                    var hits = response.getHits().getHits();
+                    int count = Math.min(limit, hits.length);
+                    List<Map<String, Object>> notes = new ArrayList<>();
+                    for (int n = 0; n < count; n++) notes.add(projectNote(hits[n].getSourceAsMap()));
+                    Map<String, Object> result = new LinkedHashMap<>();
+                    result.put("notes", notes);
+                    result.put("tasks", projectTasks(stored.source()));
+                    result.put("observed_revision", revision);
+                    result.put("activity_pending", stored.source().get("pending_activity") != null);
+                    if (hits.length > count) result.put("next_before", notes.get(count - 1).get("revision"));
+                    listener.onResponse(result);
+                }, listener::onFailure));
+            }
+        }, listener::onFailure));
+    }
+
+    static SearchSourceBuilder notesQuery(UUID id, int revision, int before, int limit) {
+        if (before < 0 || limit < 1 || limit > 50) throw invalid("Invalid note page");
+        var query = QueryBuilders.boolQuery().filter(QueryBuilders.termQuery("incident_id", id.toString()))
+                .filter(QueryBuilders.termQuery("kind", "note_added"))
+                .filter(QueryBuilders.rangeQuery("revision").lte(revision));
+        if (before > 0) query.filter(QueryBuilders.rangeQuery("revision").lt(before));
+        return new SearchSourceBuilder().query(query).size(limit + 1).trackTotalHits(false)
+                .sort("revision", SortOrder.DESC);
+    }
+
+    static Map<String, Object> projectNote(Map<String, Object> source) {
+        if (!"note_added".equals(source.get("kind")) || !(source.get("changes") instanceof Map<?, ?> changes) ||
+                !(changes.get("note") instanceof Map<?, ?> note) || !(note.get("after") instanceof String body)) {
+            throw new IllegalStateException("Invalid delivered note");
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        for (String field : Set.of("id", "incident_id", "revision", "actor", "at")) result.put(field, source.get(field));
+        result.put("body", body);
+        return result;
+    }
+
+    static List<Map<String, Object>> projectTasks(Map<String, Object> source) {
+        Object value = source.getOrDefault("tasks", List.of());
+        if (!(value instanceof List<?> tasks) || tasks.size() > 100) throw new IllegalStateException("Invalid task state");
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Object entry : tasks) {
+            if (!(entry instanceof Map<?, ?> task)) throw new IllegalStateException("Invalid task");
+            Map<String, Object> projected = new LinkedHashMap<>();
+            for (String field : Set.of("id", "title", "status", "created_by", "created_at", "completed_by", "completed_at")) {
+                Object item = task.get(field);
+                if (!scalar(item)) throw new IllegalStateException("Invalid task field");
+                projected.put(field, item);
+            }
+            result.add(projected);
+        }
+        return result;
+    }
+
     static SearchSourceBuilder activityQuery(UUID id, int revision, int before, int limit) {
         if (before < 0 || limit < 1 || limit > 100) throw invalid("Invalid activity page");
         var query = QueryBuilders.boolQuery().filter(QueryBuilders.termQuery("incident_id", id.toString()))

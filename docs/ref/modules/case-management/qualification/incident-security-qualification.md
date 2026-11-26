@@ -37,3 +37,8 @@ A creator-only grant returns the created/current incident summary to that caller
 ## Evidence required
 
 Record exact artifact SHAs, node settings, role definitions and effective-role inventory (no secrets), request/response status and redacted payloads, before/after state counts and revisions, audit-event identity uniqueness, and failover/restart observations. Report PASS/FAIL/BLOCKED separately per scenario. Do not infer deployment security from unit tests or hidden index names. Full production activation requires a passing real-cluster matrix, including direct-index bypass, and operator approval.
+
+### Collaboration scenarios
+
+- Reader can retrieve notes and tasks via the dedicated collaboration projection but cannot add notes or mutate tasks. Analyst may add an attributed note to an open incident even if not owner; only the owner may change tasks. Creator-only/no-access must not read collaboration or invoke the collaborate action.
+- Verify note text never appears in ordinary activity projection or incident summary. Assert no actor spoofing, no edit/delete path, no task mutation on closed incidents, no foreign task ID mutation, and no stale revision overwrite. Test over 20 notes and pagination, pending note delivery recovery, and task cap enforcement.

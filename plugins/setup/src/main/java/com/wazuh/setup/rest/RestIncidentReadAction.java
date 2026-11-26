@@ -42,7 +42,8 @@ public final class RestIncidentReadAction extends BaseRestHandler {
     public List<Route> routes() {
         return List.of(new Route(RestRequest.Method.GET, ROOT), new Route(RestRequest.Method.GET, ROOT + "/{id}"),
                 new Route(RestRequest.Method.GET, ROOT + "/{id}/activity"),
-                new Route(RestRequest.Method.GET, ROOT + "/{id}/findings"));
+                new Route(RestRequest.Method.GET, ROOT + "/{id}/findings"),
+                new Route(RestRequest.Method.GET, ROOT + "/{id}/collaboration"));
     }
 
     @Override
@@ -59,6 +60,9 @@ public final class RestIncidentReadAction extends BaseRestHandler {
         IncidentReadRequest read;
         if (id != null && request.path().endsWith("/activity")) {
             read = new IncidentReadRequest(id, null, IncidentReadRequest.View.ACTIVITY,
+                    request.paramAsInt("limit", 50), request.paramAsInt("before", 0), 0);
+        } else if (id != null && request.path().endsWith("/collaboration")) {
+            read = new IncidentReadRequest(id, null, IncidentReadRequest.View.COLLABORATION,
                     request.paramAsInt("limit", 50), request.paramAsInt("before", 0), 0);
         } else if (id != null && request.path().endsWith("/findings")) {
             read = new IncidentReadRequest(id, null, IncidentReadRequest.View.FINDINGS,
