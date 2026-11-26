@@ -38,5 +38,20 @@
     ],
     "index_permissions": [],
     "tenant_permissions": []
+  },
+  "incident_correlation_policy_reader": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/correlation_policy_read"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_correlation_policy_author": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/correlation_policy_read",
+      "cluster:admin/wazuh/incident/correlation_policy_save"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
   }
 }

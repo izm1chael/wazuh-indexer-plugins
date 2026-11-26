@@ -54,6 +54,10 @@ import java.util.function.Supplier;
 import com.wazuh.setup.action.GetAiAssistantSettingsAction;
 import com.wazuh.setup.action.IncidentReadAction;
 import com.wazuh.setup.action.IncidentCorrelationAction;
+import com.wazuh.setup.action.CorrelationPolicyAction;
+import com.wazuh.setup.incident.CorrelationPolicyStore;
+import com.wazuh.setup.rest.RestCorrelationPolicyAction;
+import com.wazuh.setup.transport.TransportCorrelationPolicyAction;
 import com.wazuh.setup.incident.CorrelationPreviewService;
 import com.wazuh.setup.rest.RestIncidentCorrelationAction;
 import com.wazuh.setup.transport.TransportIncidentCorrelationAction;
@@ -190,6 +194,7 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
         if (PluginSettings.INCIDENTS_ENABLED.get(environment.settings())) {
             this.indices.add(new StateIndex(IncidentRepository.INCIDENTS, "templates/cases/incidents"));
             this.indices.add(new StateIndex(IncidentRepository.ACTIVITY, "templates/cases/activity"));
+            this.indices.add(new StateIndex(CorrelationPolicyStore.INDEX, "templates/cases/correlation-policies"));
         }
 
         // State indices
@@ -261,7 +266,7 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
         IncidentInvestigationService investigation = new IncidentInvestigationService(client, threadPool, incidents, new FindingAccess(client));
         IncidentWriteService incidentWriter = new IncidentWriteService(incidents, new FindingAccess(client),
                 Clock.systemUTC(), error -> log.warn("Incident activity delivery pending", error));
-        return List.of(this.settingsIndex, this.settingsAdminIndex, this.sessionsIndex, incidentReader, incidentWriter, investigation, new CorrelationPreviewService(client));
+        return List.of(this.settingsIndex, this.settingsAdminIndex, this.sessionsIndex, incidentReader, incidentWriter, investigation, new CorrelationPreviewService(client), new CorrelationPolicyStore(client, threadPool, Clock.systemUTC()));
     }
 
     @Override
@@ -369,6 +374,7 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
             handlers.add(new RestIncidentReadAction());
             handlers.add(new RestIncidentWriteAction());
             handlers.add(new RestIncidentCorrelationAction());
+            handlers.add(new RestCorrelationPolicyAction());
         }
         return handlers;
     }
@@ -384,6 +390,8 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
                         PutAiAssistantSettingsAction.INSTANCE, TransportPutAiAssistantSettingsAction.class),
                 new ActionPlugin.ActionHandler<>(
                         PutAiAssistantSessionAction.INSTANCE, TransportPutAiAssistantSessionAction.class),
+                new ActionPlugin.ActionHandler<>(CorrelationPolicyAction.READ, TransportCorrelationPolicyAction.Read.class),
+                new ActionPlugin.ActionHandler<>(CorrelationPolicyAction.SAVE, TransportCorrelationPolicyAction.Save.class),
                 new ActionPlugin.ActionHandler<>(IncidentCorrelationAction.INSTANCE, TransportIncidentCorrelationAction.class),
                 new ActionPlugin.ActionHandler<>(IncidentReadAction.INSTANCE, TransportIncidentReadAction.class),
                 new ActionPlugin.ActionHandler<>(IncidentWriteAction.CREATE, TransportIncidentWriteAction.Create.class),
