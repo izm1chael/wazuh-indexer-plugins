@@ -42,10 +42,13 @@ public final class IncidentAutomationPolicy {
     private IncidentAutomationPolicy() {}
 
     public record Rule(String id, String trigger, String severity, String status, int minimumFindings,
-            boolean unassigned, List<String> requiredTags, Map<String, Object> actions) {
+            boolean unassigned, List<String> requiredTags, String correlationPolicy, Map<String, Object> actions) {
         Map<String, Object> definition() {
-            return Map.of("id", id, "trigger", trigger, "minimum_severity", severity, "status", status,
-                    "minimum_findings", minimumFindings, "unassigned_only", unassigned, "required_tags", requiredTags, "actions", actions);
+            var out = new LinkedHashMap<String, Object>();
+            out.put("id", id); out.put("trigger", trigger); out.put("minimum_severity", severity); out.put("status", status);
+            out.put("minimum_findings", minimumFindings); out.put("unassigned_only", unassigned); out.put("required_tags", requiredTags);
+            out.put("correlation_policy_id", correlationPolicy); out.put("actions", actions);
+            return out;
         }
     }
     public record Policy(UUID id, int version, List<Rule> rules) {
@@ -65,7 +68,7 @@ public final class IncidentAutomationPolicy {
         var seen = new HashSet<String>(); var rules = new ArrayList<Rule>();
         for (Object item : items) {
             if (!(item instanceof Map<?, ?> row) || !row.keySet().equals(Set.of("id", "trigger", "minimum_severity", "status",
-                    "minimum_findings", "unassigned_only", "required_tags", "actions"))) throw invalid("Invalid automation rule");
+                    "minimum_findings", "unassigned_only", "required_tags", "correlation_policy_id", "actions"))) throw invalid("Invalid automation rule");
             String key = text(row.get("id"), 64);
             if (!key.matches("[a-z][a-z0-9_-]{0,63}") || !seen.add(key)) throw invalid("Duplicate or invalid automation rule ID");
             String trigger = choice(row.get("trigger"), Set.of("created", "updated"));
@@ -91,34 +94,48 @@ public final class IncidentAutomationPolicy {
             if (raw.containsKey("create_task")) actions.put("create_task", text(raw.get("create_task"), 1024));
             if (raw.containsKey("apply_playbook")) actions.put("apply_playbook", choice(raw.get("apply_playbook"),
                     Set.of("initial_triage", "high_severity_review", "linked_finding_review")));
+            String correlation = row.get("correlation_policy_id") == null ? null :
+                    IncidentReadService.canonicalId(text(row.get("correlation_policy_id"), 36)).toString();
             rules.add(new Rule(key, trigger, severity, status, minimum, unassigned,
-                    List.copyOf(IncidentEvidenceRegister.tags(row.get("required_tags"))), Map.copyOf(actions)));
+                    List.copyOf(IncidentEvidenceRegister.tags(row.get("required_tags"))), correlation, Map.copyOf(actions)));
         }
         return new Policy(uuid, version, List.copyOf(rules));
     }
 
     /** Latest delivered event only; superseded events are deliberately not replayed. */
     static Rule match(Policy policy, Map<String, Object> source, Map<String, Object> event) {
-        if (source.get("pending_activity") != null || "closed".equals(source.get("status")) ||
-                !(source.get("revision") instanceof Integer revision) || revision < 1 ||
+        if (source.get("pending_activity") != null || "closed".equals(source.get("status"))) return null;
+        if (!(source.get("revision") instanceof Integer revision) || revision < 1 ||
                 !source.get("id").equals(event.get("incident_id")) || !Integer.valueOf(revision).equals(event.get("revision")) ||
                 !(source.get("id") + ":" + revision).equals(event.get("id")) ||
                 !source.get("updated_at").equals(event.get("at")) || !source.get("updated_by").equals(event.get("actor")) ||
-                !(event.get("changes") instanceof Map<?, ?>) || !(event.get("kind") instanceof String kind)) return null;
+                !(event.get("changes") instanceof Map<?, ?>) || !(event.get("kind") instanceof String kind)) throw new IllegalStateException("Automation event identity mismatch");
         String trigger = "created".equals(kind) && revision == 1 ? "created" : UPDATES.contains(kind) ? "updated" : null;
-        if (trigger == null || receipts(source).stream().anyMatch(row -> policy.id().toString().equals(row.get("policy_id")) &&
-                Integer.valueOf(policy.version()).equals(row.get("policy_version")))) return null;
+        if (alreadyRecorded(policy, source) || trigger == null) return null;
         int severity = SEVERITY.indexOf(source.get("severity"));
         if (severity < 0 || !(source.get("finding_count") instanceof Integer count) || count < 0 || count > 1000 ||
                 !Set.of("new", "triaging", "active").contains(source.get("status"))) throw new IllegalStateException("Invalid automation source metadata");
         var tags = IncidentEvidenceRegister.storedTags(source);
+        String correlation = source.get("correlation_origin") instanceof Map<?, ?> origin && origin.get("policy_id") instanceof String id ? id : null;
         for (Rule rule : policy.rules()) {
             if (rule.trigger().equals(trigger) && severity >= SEVERITY.indexOf(rule.severity()) &&
                     ("any_open".equals(rule.status()) || rule.status().equals(source.get("status"))) &&
                     count >= rule.minimumFindings() && (!rule.unassigned() || source.get("owner") == null) &&
-                    tags.containsAll(rule.requiredTags())) return rule;
+                    tags.containsAll(rule.requiredTags()) && (rule.correlationPolicy() == null || rule.correlationPolicy().equals(correlation))) return rule;
         }
         return null;
+    }
+
+    static boolean alreadyRecorded(Policy policy, Map<String, Object> source) {
+        for (var row : receipts(source)) {
+            if (policy.id().toString().equals(row.get("policy_id")) && Integer.valueOf(policy.version()).equals(row.get("policy_version"))) {
+                if (!policy.fingerprint().equals(row.get("policy_hash")) ||
+                        policy.rules().stream().noneMatch(rule -> rule.id().equals(row.get("rule_id"))))
+                    throw new IllegalStateException("Automation receipt policy mismatch");
+                return true;
+            }
+        }
+        return false;
     }
 
     static List<Map<String, Object>> receipts(Map<String, Object> source) {
