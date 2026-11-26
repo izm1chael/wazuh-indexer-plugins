@@ -35,6 +35,7 @@ class IncidentRoleFixturesTest(unittest.TestCase):
             "incident_automation_reader": ("automation_read",),
             "incident_automation_author": ("automation_save",),
             "incident_automation_executor": ("automation_execute",),
+            "incident_soar_dispatcher": ("soar_dispatch",),
             "incident_analytics_executor": ("analytics_read", "analytics_execute"),
             "incident_indicator_reader": ("indicator_read",),
             "incident_indicator_writer": ("indicator_write",),
