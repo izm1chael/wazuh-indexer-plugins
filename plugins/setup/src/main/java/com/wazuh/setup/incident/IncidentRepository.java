@@ -17,6 +17,10 @@
 package com.wazuh.setup.incident;
 
 import org.opensearch.OpenSearchStatusException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import java.io.IOException;
+import java.util.Arrays;
 import org.opensearch.action.DocWriteRequest;
 import org.opensearch.action.get.GetRequest;
 import org.opensearch.action.index.IndexRequest;
@@ -39,6 +43,7 @@ import java.util.UUID;
  * before entering this repository. Never accept arbitrary source/index from REST.
  */
 public final class IncidentRepository {
+    private static final ObjectMapper AUDIT_JSON = new ObjectMapper().enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
     public static final String INCIDENTS = ".wazuh-cases-v1";
     public static final String ACTIVITY = ".wazuh-case-activity-v1";
 
@@ -147,12 +152,22 @@ public final class IncidentRepository {
     private void verifyReplay(String id, Map<String, Object> event, Stored previous, ActionListener<Stored> listener) {
         try (ThreadContext.StoredContext ignored = threadPool.getThreadContext().stashContext()) {
             client.get(new GetRequest(ACTIVITY, id), ActionListener.wrap(response -> {
-                if (!response.isExists() || !event.equals(response.getSourceAsMap())) {
+                if (!response.isExists() || !sameEvent(event, response.getSourceAsMap())) {
                     listener.onFailure(new IllegalStateException("Incident activity identity collision"));
                     return;
                 }
                 acknowledge(previous, listener);
             }, listener::onFailure));
+        }
+    }
+
+    /** Compare the serialized content, not Java numeric wrapper classes or map ordering. */
+    static boolean sameEvent(Map<String, Object> expected, Map<String, Object> actual) {
+        if (actual == null) return false;
+        try {
+            return Arrays.equals(AUDIT_JSON.writeValueAsBytes(expected), AUDIT_JSON.writeValueAsBytes(actual));
+        } catch (IOException e) {
+            throw new IllegalStateException("Unable to verify persisted activity", e);
         }
     }
 
