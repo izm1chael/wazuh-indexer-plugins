@@ -1,0 +1,38 @@
+{
+  "format": "wade-candidate-pack-v1",
+  "status": "unqualified_disabled_examples",
+  "rules": [
+    {
+      "id": "auth-failure-volume",
+      "version": "1",
+      "enabled": false,
+      "window_seconds": 300,
+      "mode": "EVENT_COUNT",
+      "threshold": 20,
+      "max_inputs": 1000,
+      "attack_mapping_candidate": ["T1110"],
+      "selector": {
+        "format": "wcs-count-v1",
+        "scope_field": "agent.id",
+        "terms": {"event.kind": "event", "event.category": "authentication", "event.outcome": "failure"},
+        "distinct_field": null
+      }
+    },
+    {
+      "id": "auth-failure-source-cardinality",
+      "version": "1",
+      "enabled": false,
+      "window_seconds": 900,
+      "mode": "DISTINCT_VALUE_COUNT",
+      "threshold": 10,
+      "max_inputs": 1000,
+      "attack_mapping_candidate": ["T1110"],
+      "selector": {
+        "format": "wcs-count-v1",
+        "scope_field": "agent.id",
+        "terms": {"event.kind": "event", "event.category": "authentication", "event.outcome": "failure"},
+        "distinct_field": "source.ip"
+      }
+    }
+  ]
+}

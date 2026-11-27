@@ -79,7 +79,7 @@ def read_window(transport, tenant, partitions, start, end, as_of, *, page_size=1
             body = {'size': page_size, 'track_total_hits': False, 'timeout': '10s',
                     'pit': {'id': pit, 'keep_alive': '1m'},
                     'sort': [{'@timestamp': 'asc'}, {'_shard_doc': 'asc'}],
-                    '_source': ['@timestamp','event.ingested','event.kind','event.action','event.outcome',
+                    '_source': ['@timestamp','event.ingested','event.kind','event.category','event.action','event.outcome',
                                 'agent.id','user.id','host.id','process.entity_id','source.ip','destination.ip'],
                     'query': {'range': {'@timestamp': {'gte': start, 'lt': end}}}}
             if cursor is not None:
