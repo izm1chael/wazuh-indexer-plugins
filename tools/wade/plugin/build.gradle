@@ -45,6 +45,7 @@ sourceSets {
       include 'com/wazuh/wade/DetectionKernel.java'
       include 'com/wazuh/wade/TemporalCorrelation.java'
       include 'com/wazuh/wade/CrossWindowCorrelation.java'
+      include 'com/wazuh/wade/FindingReconciliation.java'
       include 'com/wazuh/wade/EntityResolver.java'
       include 'com/wazuh/wade/EntityRisk.java'
       include 'com/wazuh/wade/BehaviourBaseline.java'

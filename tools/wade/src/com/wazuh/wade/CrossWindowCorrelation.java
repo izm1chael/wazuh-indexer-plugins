@@ -39,7 +39,7 @@ public final class CrossWindowCorrelation {
                 || watermark.isAfter(asOf)) throw new IllegalArgumentException("invalid window");
         }
     }
-    public record Result(Status status, String reason, String findingId, String receipt, List<String> sources) {
+    public record Result(Status status, String reason, String findingId, String evidenceDigest, String receipt, List<String> sources) {
         public Result { sources = List.copyOf(sources); }
     }
     public static Result evaluate(Policy p, String scope, Window w, List<Event> input) {
@@ -80,14 +80,22 @@ public final class CrossWindowCorrelation {
                         List<String> refs=Arrays.stream(witness).map(Event::source).toList();
                         List<String> receiptFields=new ArrayList<>(fields); receiptFields.add("MATCH"); receiptFields.addAll(refs);
                         // Stable logical ID per immutable policy definition, scope and completion window.
-                        List<String> identity=new ArrayList<>(List.of("wade-cross-window-id-v1",p.version(),scope,w.start().toString(),w.end().toString(),p.mode().name(),p.span().toString(),Integer.toString(p.inputLimit()),Integer.toString(p.workLimit())));
-                        identity.addAll(p.stages());
-                        return new Result(Status.MATCH,"ANCHORED_WITNESS",hash(identity),hash(receiptFields),refs);
+                        List<String> witnessFields=new ArrayList<>(List.of("wade-cross-window-evidence-v1"));
+                        for (Event e:witness) {
+                            List<String> f=new ArrayList<>(List.of(e.source(),e.occurred().toString(),e.available().toString()));
+                            f.addAll(new TreeSet<>(e.stages())); witnessFields.add(hash(f));
+                        }
+                        return new Result(Status.MATCH,"ANCHORED_WITNESS",logicalKey(p,scope,w),hash(witnessFields),hash(receiptFields),refs);
                     }
                 }
             }
         } catch (Limit ex) { return empty(Status.UNKNOWN,"WORK_LIMIT"); }
-        fields.add("NO_MATCH"); return new Result(Status.NO_MATCH,"NO_ANCHORED_SEQUENCE",null,hash(fields),List.of());
+        fields.add("NO_MATCH"); return new Result(Status.NO_MATCH,"NO_ANCHORED_SEQUENCE",null,null,hash(fields),List.of());
+    }
+    public static String logicalKey(Policy p,String scope,Window w) {
+        Objects.requireNonNull(p); key(scope); Objects.requireNonNull(w);
+        List<String> identity=new ArrayList<>(List.of("wade-cross-window-id-v1",p.version(),scope,w.start().toString(),w.end().toString(),p.mode().name(),p.span().toString(),Integer.toString(p.inputLimit()),Integer.toString(p.workLimit())));
+        identity.addAll(p.stages()); return hash(identity);
     }
     private static boolean assign(Policy p,List<Event> events,int last,Event anchor,Event[] witness,int stage,Instant upper,Set<String> used,int[] work) {
         if (stage<0) return true;
@@ -105,7 +113,7 @@ public final class CrossWindowCorrelation {
     }
     private static final class Limit extends RuntimeException { private static final long serialVersionUID=1L; }
     private static void spend(int[] work) { if (--work[0]<0) throw new Limit(); }
-    private static Result empty(Status s,String reason) { return new Result(s,reason,null,null,List.of()); }
+    private static Result empty(Status s,String reason) { return new Result(s,reason,null,null,null,List.of()); }
     private static void key(String s) {
         if (s==null || s.isBlank() || s.length()>1024 || !StandardCharsets.UTF_8.newEncoder().canEncode(s)) throw new IllegalArgumentException("invalid key");
     }
