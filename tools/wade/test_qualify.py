@@ -4,16 +4,29 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
-from qualify import step, report_status, zip_receipt, sha
+from qualify import step, report_status, zip_receipt, sha, native_test_receipt
 
 class QualificationTests(unittest.TestCase):
     def test_production_never_passes_from_reference(self):
         r=report_status([{'name':'java','status':'PASS'}],False,None)
-        self.assertEqual(r,{'reference':'PASS','native_package':'NOT_RUN','production':'BLOCKED','exit_code':0})
+        self.assertEqual(r,{'reference':'PASS','native_package':'NOT_RUN','native_integration':'NOT_RUN','production':'BLOCKED','exit_code':0})
     def test_requested_build_requires_receipt(self):
         rows=[{'name':'java','status':'PASS'},{'name':'native-build','status':'PASS'}]
         self.assertEqual(report_status(rows,True,None)['exit_code'],1)
         r=report_status(rows,True,{'sha256':'x'});self.assertEqual(r['native_package'],'PASS');self.assertEqual(r['production'],'BLOCKED')
+    def test_native_integration_required_and_receipt(self):
+        rows=[{'name':'java','status':'PASS'},{'name':'native-build','status':'PASS'}]
+        self.assertEqual(report_status(rows,True,{'sha256':'x'},True)['native_integration'],'FAIL')
+        self.assertEqual(report_status(rows,True,{'sha256':'x'},True)['exit_code'],1)
+        rows.append({'name':'native-integration','status':'PASS'})
+        self.assertEqual(report_status(rows,True,{'sha256':'x'},True,{'sha256':'y'})['native_integration'],'PASS')
+        self.assertEqual(report_status(rows,True,{'sha256':'x'},True,{'sha256':'y'})['production'],'BLOCKED')
+        with tempfile.TemporaryDirectory() as d:
+            p=Path(d)/'TEST.xml'
+            fixture='<testsuite tests="1" failures="0" errors="0" skipped="0"><testcase classname="com.wazuh.wade.plugin.NativeTemporalRuntimeTests" name="testNativeTemporalReleaseFlow"/></testsuite>'
+            p.write_text(fixture);self.assertEqual(native_test_receipt(p)['sha256'],sha(p))
+            p.write_text(fixture.replace('skipped="0"','skipped="1"'))
+            with self.assertRaises(ValueError):native_test_receipt(p)
     def test_reference_failure(self):
         self.assertEqual(report_status([{'name':'java','status':'FAIL'}],False,None)['exit_code'],1)
         self.assertEqual(report_status([],False,None)['reference'],'FAIL')

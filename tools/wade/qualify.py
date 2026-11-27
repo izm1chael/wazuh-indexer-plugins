@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""WADE reference/build qualification. No installation, cluster requests or credentials."""
+"""WADE reference/build qualification. No production installation, external cluster requests or credentials."""
 import argparse
 import hashlib
 import json
@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import zipfile
+import xml.etree.ElementTree as ET
 
 INDEXER_BASE = 'e2871f7d68ee46fef2b01e21d3261dc6ab411489'
 DASHBOARD_BASE = '22901fa354f20616d4bc707003b4b8a115cfb3d9'
@@ -75,13 +76,27 @@ def zip_receipt(path):
     return {'file':path.name,'bytes':path.stat().st_size,'sha256':sha(path),'descriptor':{k:fields.get(k) for k in ('name','version','opensearch.version','java.version','classname')}}
 
 
-def report_status(steps, native_requested, package):
-    reference = [s for s in steps if s['name'] != 'native-build']
+def native_test_receipt(path):
+    if path.stat().st_size > 8 * 1024 * 1024:
+        raise ValueError('native test result exceeds size limit')
+    root = ET.parse(path).getroot()
+    cases = root.findall('testcase')
+    expected = 'com.wazuh.wade.plugin.NativeTemporalRuntimeTests'
+    if root.tag != 'testsuite' or len(cases) != 1 or cases[0].get('classname') != expected or cases[0].get('name') != 'testNativeTemporalReleaseFlow' or any(cases[0].find(tag) is not None for tag in ('skipped','failure','error')) or any(root.get(k) != v for k,v in [('tests','1'),('failures','0'),('errors','0'),('skipped','0')]):
+        raise ValueError('native integration did not execute and pass exactly one expected test')
+    return {'test': expected, 'method': cases[0].get('name'), 'sha256': sha(path)}
+
+
+def report_status(steps, native_requested, package, integration_requested=False, integration_receipt=None):
+    reference = [s for s in steps if s['name'] not in ('native-build','native-integration')]
     ok = bool(reference) and all(s['status'] == 'PASS' for s in reference)
     native = [s for s in steps if s['name'] == 'native-build']
     built = bool(native) and all(s['status'] == 'PASS' for s in native) and package is not None
+    integration = [s for s in steps if s['name'] == 'native-integration']
+    integrated = built and bool(integration) and all(s['status'] == 'PASS' for s in integration) and integration_receipt is not None
     return {'reference':'PASS' if ok else 'FAIL', 'native_package':'PASS' if built else 'FAIL' if native_requested else 'NOT_RUN',
-            'production':'BLOCKED', 'exit_code':0 if ok and (not native_requested or built) else 1}
+            'native_integration':'PASS' if integrated else 'FAIL' if integration_requested else 'NOT_RUN',
+            'production':'BLOCKED', 'exit_code':0 if ok and (not native_requested or built) and (not integration_requested or integrated) else 1}
 
 
 def main():
@@ -89,8 +104,11 @@ def main():
     parser.add_argument('--out', required=True, type=Path, help='New private output directory outside both checkouts')
     parser.add_argument('--dashboard-checkout', type=Path)
     parser.add_argument('--native-build', action='store_true')
+    parser.add_argument('--native-integration', action='store_true', help='Run the embedded disposable two-node native test after packaging')
     parser.add_argument('--opensearch-version', default='3.6.0-SNAPSHOT')
     args=parser.parse_args()
+    if args.native_integration and not args.native_build:
+        parser.error('--native-integration requires --native-build')
     root=Path(__file__).resolve().parents[2]
     dashboard=args.dashboard_checkout.resolve() if args.dashboard_checkout else None
     out=args.out.resolve()
@@ -99,7 +117,7 @@ def main():
     if not args.opensearch_version or len(args.opensearch_version)>80 or any(c not in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_' for c in args.opensearch_version):
         parser.error('invalid OpenSearch artifact version')
     out.mkdir(mode=0o700,parents=False,exist_ok=False)
-    report={'format':'wade-qualification-v1','scope':'reference-and-package-only','steps':[], 'external_gates':EXTERNAL_GATES, 'package':None}
+    report={'format':'wade-qualification-v1','scope':'reference-package-and-optional-embedded-test','steps':[], 'external_gates':EXTERNAL_GATES, 'package':None,'integration_receipt':None}
     steps=report['steps']
     try:
         report['indexer']=checkout(root,INDEXER_BASE,'tools/wade/')
@@ -131,12 +149,18 @@ def main():
                 paths=list((root/'tools/wade/plugin/build/distributions').glob('*.zip'))
                 if len(paths)!=1: raise ValueError('expected exactly one plugin ZIP')
                 report['package']=zip_receipt(paths[0])
-    except (ValueError,OSError,subprocess.SubprocessError,zipfile.BadZipFile) as error:
+                if args.native_integration:
+                    native_result = step(root,out,'native-integration',['sh','gradlew','-p','tools/wade/plugin','--no-daemon','-Dopensearch.version='+args.opensearch_version,'test','--rerun-tasks','--tests','com.wazuh.wade.plugin.NativeTemporalRuntimeTests'],1800)
+                    steps.append(native_result)
+                    if native_result['status']=='PASS':
+                        result = root/'tools/wade/plugin/build/test-results/test/TEST-com.wazuh.wade.plugin.NativeTemporalRuntimeTests.xml'
+                        report['integration_receipt']=native_test_receipt(result)
+    except (ValueError,OSError,subprocess.SubprocessError,zipfile.BadZipFile,ET.ParseError) as error:
         report['qualification_error']=str(error)
         steps.append({'name':'qualification-preconditions','status':'FAIL'})
-    report.update(report_status(steps,args.native_build,report['package']))
+    report.update(report_status(steps,args.native_build,report['package'],args.native_integration,report['integration_receipt']))
     (out/'report.json').write_text(json.dumps(report,indent=2,sort_keys=True)+'\n',encoding='utf-8')
-    print(json.dumps({k:report[k] for k in ('reference','native_package','production','exit_code')},indent=2))
+    print(json.dumps({k:report[k] for k in ('reference','native_package','native_integration','production','exit_code')},indent=2))
     return report['exit_code']
 
 
