@@ -75,7 +75,9 @@ class Store:
         raw = base64.b64decode(encoded, validate=True)
         if len(raw) > 65536 or hashlib.sha256(raw).hexdigest() != hexid(doc['selector_digest']):
             raise ValueError('selector integrity')
-        if doc['mode'] not in ('EVENT_COUNT', 'DISTINCT_VALUE_COUNT') or not 1 <= doc['threshold'] <= doc['max_inputs'] <= 10000:
+        if (doc['mode'] not in ('EVENT_COUNT', 'DISTINCT_VALUE_COUNT', 'TEMPORAL_ORDERED', 'TEMPORAL_UNORDERED')
+                or type(doc['threshold']) is not int or type(doc['max_inputs']) is not int
+                or not 1 <= doc['threshold'] <= doc['max_inputs'] <= 10000):
             raise ValueError('invalid rule definition')
         expected = digest('wade-rule-v1', self.tenant, doc['rule_id'], doc['rule_version'], doc['mode'],
                           str(doc['threshold']), str(doc['max_inputs']), doc['selector_digest'])
