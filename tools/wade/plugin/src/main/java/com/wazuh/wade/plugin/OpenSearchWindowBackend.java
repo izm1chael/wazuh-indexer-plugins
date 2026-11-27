@@ -6,6 +6,7 @@ import java.util.Objects;
 
 import com.wazuh.wade.IndexWindowStore;
 import com.wazuh.wade.IndexTemporalJobs;
+import com.wazuh.wade.IndexTemporalRegistry;
 import org.opensearch.ExceptionsHelper;
 import org.opensearch.action.DocWriteResponse;
 import org.opensearch.action.get.GetRequest;
@@ -62,7 +63,7 @@ public final class OpenSearchWindowBackend implements IndexWindowStore.Backend {
     public boolean replace(
             String index, String id, long sequence, long primaryTerm, Map<String, Object> body) {
         requireAllowed(index, id);
-        if ((!IndexWindowStore.STATE.equals(index) && !IndexTemporalJobs.INDEX.equals(index)) || sequence < 0 || primaryTerm < 1) {
+        if ((!IndexWindowStore.STATE.equals(index) && !IndexTemporalJobs.INDEX.equals(index) && !IndexTemporalRegistry.INDEX.equals(index)) || sequence < 0 || primaryTerm < 1) {
             throw new IllegalArgumentException("invalid conditional state write");
         }
         requireWorkerContext.run();
