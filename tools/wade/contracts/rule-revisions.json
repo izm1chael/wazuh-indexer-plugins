@@ -1,0 +1,23 @@
+{
+  "index_patterns": ["wade-v1-rule-revisions"],
+  "template": {
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "schema_version": {"type": "integer"},
+        "tenant": {"type": "keyword"},
+        "rule_id": {"type": "keyword"},
+        "rule_version": {"type": "keyword"},
+        "definition_digest": {"type": "keyword"},
+        "selector_digest": {"type": "keyword"},
+        "selector_payload": {"type": "binary", "doc_values": false},
+        "mode": {"type": "keyword"},
+        "threshold": {"type": "integer"},
+        "max_inputs": {"type": "integer"},
+        "author": {"type": "keyword"},
+        "created_at": {"type": "date_nanos"}
+      }
+    }
+  },
+  "_meta": {"wade_schema_version": 1, "status": "unregistered_reference"}
+}

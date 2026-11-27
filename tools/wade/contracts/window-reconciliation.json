@@ -1,0 +1,20 @@
+{
+  "index_patterns": ["wade-v1-window-reconciliation"],
+  "template": {
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "schema_version": {"type": "integer"},
+        "tenant": {"type": "keyword"},
+        "scope_key": {"type": "keyword"},
+        "window_key": {"type": "keyword"},
+        "token": {"type": "long"},
+        "revision": {"type": "long"},
+        "status": {"type": "keyword"},
+        "payload": {"type": "binary", "doc_values": false},
+        "payload_digest": {"type": "keyword"}
+      }
+    }
+  },
+  "_meta": {"wade_schema_version": 1, "status": "unregistered_reference"}
+}

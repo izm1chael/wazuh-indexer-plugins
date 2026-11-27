@@ -1,0 +1,44 @@
+{
+  "index_patterns": [
+    "wade-v1-temporal-evidence"
+  ],
+  "template": {
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "schema_version": {
+          "type": "integer"
+        },
+        "tenant": {
+          "type": "keyword"
+        },
+        "rule_key": {
+          "type": "keyword"
+        },
+        "kind": {
+          "type": "keyword"
+        },
+        "receipt": {
+          "type": "keyword"
+        },
+        "created": {
+          "type": "date_nanos"
+        },
+        "revoked": {
+          "type": "boolean"
+        },
+        "payload": {
+          "type": "binary",
+          "doc_values": false
+        },
+        "payload_digest": {
+          "type": "keyword"
+        }
+      }
+    }
+  },
+  "_meta": {
+    "wade_schema_version": 1,
+    "status": "unregistered_reference"
+  }
+}

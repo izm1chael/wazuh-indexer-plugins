@@ -1,0 +1,44 @@
+{
+  "index_patterns": [
+    "wade-v1-temporal-registry"
+  ],
+  "template": {
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "schema_version": {
+          "type": "integer"
+        },
+        "tenant": {
+          "type": "keyword"
+        },
+        "rule_id": {
+          "type": "keyword"
+        },
+        "rule_key": {
+          "type": "keyword"
+        },
+        "sequence": {
+          "type": "long"
+        },
+        "champion_digest": {
+          "type": "keyword"
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "payload": {
+          "type": "binary",
+          "doc_values": false
+        },
+        "payload_digest": {
+          "type": "keyword"
+        }
+      }
+    }
+  },
+  "_meta": {
+    "wade_schema_version": 1,
+    "status": "unregistered_reference"
+  }
+}

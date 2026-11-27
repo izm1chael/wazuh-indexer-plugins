@@ -1,0 +1,18 @@
+{
+  "index_patterns": ["wade-v1-delivery-receipts"],
+  "template": {
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "schema_version": {"type": "integer"},
+        "tenant": {"type": "keyword"},
+        "job_id": {"type": "keyword"},
+        "output_id": {"type": "keyword"},
+        "digest": {"type": "keyword"},
+        "status": {"type": "keyword"},
+        "finding_revision_id": {"type": "keyword"}
+      }
+    }
+  },
+  "_meta": {"wade_schema_version": 1, "status": "unregistered_reference"}
+}
