@@ -1,0 +1,14 @@
+# Example only; never installed or enabled automatically.
+[Unit]
+Description=Check due Wazuh shared behaviour observation
+
+[Timer]
+OnCalendar=*-*-* 00:15:00 UTC
+OnCalendar=*-*-* 06:15:00 UTC
+OnCalendar=*-*-* 12:15:00 UTC
+OnCalendar=*-*-* 18:15:00 UTC
+Persistent=true
+Unit=wazuh-behaviour-publish.service
+
+[Install]
+WantedBy=timers.target

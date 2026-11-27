@@ -1,0 +1,13 @@
+{
+  "endpoint": "https://indexer.example.invalid:9200",
+  "username": "wazuh-native-replay",
+  "ca_file": "/etc/wazuh-native-replay/ca.pem",
+  "integration": "00000000-0000-4000-8000-000000000001",
+  "cluster": "example-cluster",
+  "space": "standard",
+  "dataset": "example-dataset",
+  "expected_test_sha256": null,
+  "expected_custom_sha256": null,
+  "from": "2026-11-25T00:00:00Z",
+  "until": "2026-11-25T00:05:00Z"
+}

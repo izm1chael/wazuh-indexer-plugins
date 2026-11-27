@@ -1,0 +1,38 @@
+{
+  "index_patterns": [
+    ".wazuh-incident-automation-v1"
+  ],
+  "priority": 100,
+  "template": {
+    "settings": {
+      "index": {
+        "number_of_shards": 1,
+        "auto_expand_replicas": "0-1",
+        "refresh_interval": "5s",
+        "hidden": true
+      }
+    },
+    "mappings": {
+      "dynamic": "strict",
+      "date_detection": false,
+      "properties": {
+        "policy": {
+          "type": "object",
+          "enabled": false
+        },
+        "fingerprint": {
+          "type": "keyword",
+          "ignore_above": 64
+        },
+        "created_by": {
+          "type": "keyword",
+          "ignore_above": 1024
+        },
+        "created_at": {
+          "type": "date",
+          "format": "strict_date_optional_time"
+        }
+      }
+    }
+  }
+}

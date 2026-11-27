@@ -1,0 +1,20 @@
+# Example only. Register first future window manually before enabling the timer.
+[Unit]
+Description=Paired Wazuh Test/Custom shadow replay
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=wazuh-native-replay
+Group=wazuh-native-replay
+UMask=0077
+StateDirectory=wazuh-native-replay
+StateDirectoryMode=0700
+EnvironmentFile=/etc/wazuh-native-replay/credentials.env
+ExecStart=/usr/bin/python3 /opt/wazuh-native-replay/tools/native_rule_shadow_runner.py --config /etc/wazuh-native-replay/shadow.json --state /var/lib/wazuh-native-replay/shadow.sqlite
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+TimeoutStartSec=330

@@ -1,0 +1,59 @@
+# Incident security boundary (staged)
+
+The indexer, not the dashboard, is the authority for incident mutations. This follows the existing AI-assistant privileged transport action pattern. The TypeScript domain and store in the companion dashboard fork are reference/test scaffolding only; production dashboard routes must call a dedicated indexer action as the authenticated current user. Never register a generic dashboard-to-privileged-index transport proxy.
+
+Initial scope is a single SOC. All approved readers may see all incidents in that SOC, including TLP-labelled data; labels are not access controls. Explicit supervisor reassignment, tenant isolation and finding-level permission projection require further design. The initial indexer mutation rules permit self-assignment and owner-only changes; a caller cannot arbitrarily assign another identity or steal an owned incident.
+
+## Required security actions
+
+- Read/list activity and incident summaries: `cluster:admin/wazuh/incident/read`.
+- Creation: `cluster:admin/wazuh/incident/create`.
+- Self-assignment / return new incident: `cluster:admin/wazuh/incident/assign`.
+- Triage, activation, metadata: `cluster:admin/wazuh/incident/update`.
+- Classified closure: `cluster:admin/wazuh/incident/close`.
+- Finding relationships: `cluster:admin/wazuh/incident/findings`.
+- Reopen: `cluster:admin/wazuh/incident/reopen`.
+- Recovery: separate internal worker or administrator-only action, not an analyst grant.
+
+Separate transport actions (or explicit security-plugin-enforced per-command permission checks) must be registered before any route is enabled. A caller holding only one permission must not be able to select another operation through a request field. Resolve the caller from the security thread context before stashing it; missing or shared sentinel identity fails closed. Validate the exact input allowlist in the indexer, not merely the dashboard. Do not grant direct index reads/writes to ordinary analysts until the permission model is qualified; administrative users remain trusted.
+
+## Activation gates
+
+- Verify the actual security role configuration in the Wazuh indexer distribution and prohibit broad `wazuh-*` grants from bypassing the action boundary. Test direct GET/search/index/update/delete/bulk and unauthorized transport actions with real roles.
+- Test transport serialization, principal propagation, API denial, optimistic concurrency, create idempotency, ambiguous write outcomes and pending event recovery.
+- Read finding evidence under the original caller context before any privilege elevation; do not persist evidence into a broader-readable case without policy review.
+- Staged repository/mutation/REST classes do not register actions, provision indices or grant roles. They are not a deployable feature yet.
+
+## Staged write REST contract
+
+- POST `/_plugins/_setup/incidents` with title, severity, optional description/priority/TLP.
+- POST `/_plugins/_setup/incidents/{uuid}/{command}?expected_revision=N` with a command-specific JSON object.
+- Commands: assign-self, unassign, start-triage, activate, edit, close, reopen, attach-finding, detach-finding.
+- Each route maps to a distinct fixed action grant, not an arbitrary action supplied by a caller.
+- Success returns `{incident, activity_delivery}`; pending means the mutation committed but delivery is not confirmed. No claim of request idempotency yet.
+- The incident projection omits the pending audit payload and individual finding references. The count remains visible within the single-SOC case read boundary. A later link read API must recheck finding visibility under the reader's own permissions; activity containing reference metadata also requires a redaction policy before exposure.
+- The current implementation bounds each aggregate at 1,000 active references; a subsequent capacity review can migrate to a separate relation index without exposing partial writes.
+
+## Opt-in and create retry contract
+
+The indexer setting `plugins.setup.incidents.enabled` is false by default. REST handlers and index setup are conditional; transport execution separately fails closed. Enable only on an isolated qualification cluster after reviewing actual roles; this is not an RBAC deployment recipe. Disabling does not delete stored data or revoke any pre-existing direct index grants. All nodes must use the same setting.
+
+Create now requires a client-generated canonical UUID `request_id` in the JSON body, retained by the client for the same logical create attempt. The server derives the incident UUID from authenticated actor + key and persists a fingerprint of the validated normalized creation fields atomically with the aggregate. A matching create conflict returns the current incident with `replayed: true`; a changed payload returns 409. No new creation activity is emitted on replay. Ordinary commands still use expected revision and must reload on ambiguous failure. The internal fingerprint is not exposed in read or mutation responses. Never retry a creation with a newly generated key after an ambiguous outcome.
+
+## Scheduled recovery
+
+When the opt-in setting is enabled, the elected cluster manager runs a bounded asynchronous outbox sweep every 30 seconds. Each pass reads at most 25 pending incident identities in stable ID order, then re-reads their current aggregate before delivery. A create-only audit write and compare-and-set acknowledgement protect against overlapping execution after failover. Individual failures do not stop the page or permanently block later IDs; the cursor wraps after a pass. The worker uses no external service and is cancelled when the plugin closes. Recovery remains unqualified: validate scheduler lifecycle, failover, incomplete search, poison events, partial failures and real concurrent writes. Pending does not imply delivered and an indefinitely failing event must be investigated.
+
+## Investigation projections and direct access gate
+
+The read action now includes GET `/{id}/activity` (before revision, at most 100 records) and GET `/{id}/findings` (offset, expected revision, at most 25 references). The activity response exposes event identity, actor, time, kind and scalar changes to a small workflow-field allowlist; raw descriptions, closure reasons, finding references and unknown fields are redacted. Activity reads include observed revision and whether the observed aggregate still had pending activity. The finding response restores and checks the original security context before each lookup, omits inaccessible or missing references, and combines their counts. Attach AND detach require current finding visibility, preventing a guessed identifier from being used as a membership oracle. Expired/inaccessible-link cleanup is deferred to a separately authorized workflow.
+
+The backing index names now begin with a dot and are marked hidden, reducing accidental inclusion in common `wazuh-*` role patterns. Do not rely on hidden names as a security boundary. Use a disposable role matrix with zero direct backing-index permissions for ordinary incident users. Review the union of all effective roles before enabling, including broad wildcard and index alias permissions.
+
+## Collaboration
+
+The dedicated `cluster:admin/wazuh/incident/collaborate` action permits append-only notes (up to 8,192 characters) and owner-only task creation/completion/reopening. Notes are stored as full immutable delivered activity events, with the pending event persisted atomically with the aggregate revision. General activity projection omits their text. The single-SOC reader grant allows a dedicated collaboration view of notes and tasks; contributors must not paste data whose disclosure exceeds that SOC boundary. All writes are rejected on closed incidents until reopening. Notes have no 20-item lifetime cap, no edit/delete API, and use revision-based pagination. The current task list is bounded at 100 entries per incident, with no deletion; every transition is preserved in audit. Task assignment, templates, note amendments/redaction and retention governance are future work. Neither note nor task text is sourced from a finding automatically.
+
+## Finding capture receipts (provenance only)
+
+Attachment now retrieves the caller-visible source and its observed sequence number and primary term under the original caller's permissions. It records a SHA-256 digest of the parsed map serialized as sorted-key JSON, with actor, time, reference and explicit digest scope, in the same pending audit event as the attachment. Source or version unavailable, or a serialized view larger than 4 MiB, blocks attachment. The receipt is not returned in the summary, normal activity, collaboration or finding list. No raw source is persisted; this is an integrity/provenance receipt for a potentially field-filtered view, NOT a complete retained evidence snapshot or hash of the original raw event bytes. It cannot recover expired data or establish later visibility. Future evidence storage needs an explicit retention/disclosure policy and per-reader authorization that survives finding expiry; do not silently copy the source into a shared incident.

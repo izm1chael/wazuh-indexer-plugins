@@ -58,6 +58,47 @@ public class TransportPostPromoteActionTests extends OpenSearchTestCase {
             "{\"space\":\"test\",\"changes\":{\"policy\":[],\"integrations\":[],\"kvdbs\":[],"
                     + "\"decoders\":[],\"filters\":[],\"rules\":[{\"operation\":\"add\",\"id\":\"r1\"}]}}";
 
+    public void testFrozenProductionPromotionRejectedBeforeSearch() {
+        Client client = mock(Client.class);
+        var action = new TransportPostPromoteAction(mock(TransportService.class), mock(ActionFilters.class),
+                mock(SpaceService.class), mock(EngineService.class), mock(SecurityAnalyticsService.class), client, true);
+        var response = new AtomicReference<MessageStatusResponse>();
+        action.doExecute(mock(Task.class), new PostPromoteRequest(TEST_TO_CUSTOM_BODY),
+                ActionListener.wrap(response::set, e -> fail(e.getMessage())));
+        assertEquals(RestStatus.FORBIDDEN, response.get().getStatus());
+        org.mockito.Mockito.verifyNoInteractions(client);
+    }
+
+    public void testPlanReviewRejectsDraftAndNonBooleanFlag() {
+        Client client = mock(Client.class);
+        var action = new TransportPostPromoteAction(mock(TransportService.class), mock(ActionFilters.class),
+                mock(SpaceService.class), mock(EngineService.class), mock(SecurityAnalyticsService.class), client, true);
+        for(String body : List.of(
+                TEST_TO_CUSTOM_BODY.replace("\"space\":\"test\"", "\"space\":\"draft\",\"review_plan_only\":true"),
+                TEST_TO_CUSTOM_BODY.replace("\"space\":\"test\"", "\"space\":\"test\",\"review_plan_only\":\"true\""),
+                TEST_TO_CUSTOM_BODY.replace("\"space\":\"test\"", "\"space\":\"test\",\"space\":\"test\""))) {
+            var response = new AtomicReference<MessageStatusResponse>();
+            action.doExecute(mock(Task.class), new PostPromoteRequest(body),
+                    ActionListener.wrap(response::set, e -> fail(e.getMessage())));
+            assertEquals(RestStatus.BAD_REQUEST, response.get().getStatus());
+        }
+        org.mockito.Mockito.verifyNoInteractions(client);
+    }
+
+    public void testReleasePreviewFingerprintAndExistingRuleUpdatesOnly() throws Exception {
+        var json=new com.fasterxml.jackson.databind.ObjectMapper();
+        String rule="00000000-0000-4000-8000-000000000001";
+        String body=TEST_TO_CUSTOM_BODY.replace("\"add\"","\"update\"").replace("\"r1\"","\""+rule+"\"");
+        var diff=json.readValue(body,com.wazuh.contentmanager.rest.model.SpaceDiff.class);
+        assertEquals(List.of(rule),TransportPostPromoteAction.releaseRuleUpdates(diff));
+        assertEquals("54cbfbc06ccf132ada57c82a1f84048a042e32ee7dbf180ecd06f12bc598a1d0",
+                PromotionPlanFingerprint.of(Map.of("changes",diff.getChanges())));
+        for(String operation:List.of("add","remove")){
+            var rejected=json.readValue(body.replace("\"update\"","\""+operation+"\""),com.wazuh.contentmanager.rest.model.SpaceDiff.class);
+            expectThrows(IllegalArgumentException.class,()->TransportPostPromoteAction.releaseRuleUpdates(rejected));
+        }
+    }
+
     /** Runs a test to custom promotion whose detector lookup fails with {@code failure}. */
     @SuppressWarnings("unchecked")
     private MessageStatusResponse promoteWithFailingDetectorLookup(Exception failure) {
@@ -76,7 +117,7 @@ public class TransportPostPromoteActionTests extends OpenSearchTestCase {
                         mock(SpaceService.class),
                         mock(EngineService.class),
                         mock(SecurityAnalyticsService.class),
-                        client);
+                        client, false);
 
         AtomicReference<MessageStatusResponse> response = new AtomicReference<>();
         action.doExecute(

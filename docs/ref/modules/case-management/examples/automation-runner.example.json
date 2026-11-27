@@ -1,0 +1,8 @@
+{
+  "endpoint": "https://indexer.example.invalid:9200",
+  "username": "wazuh-automation-runner",
+  "ca_file": "/etc/wazuh-automation/ca.pem",
+  "policy_id": "00000000-0000-4000-8000-000000000001",
+  "policy_version": 1,
+  "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+}

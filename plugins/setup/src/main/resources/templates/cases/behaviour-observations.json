@@ -1,0 +1,98 @@
+{
+  "index_patterns": [
+    ".wazuh-behaviour-observations-v1"
+  ],
+  "priority": 100,
+  "template": {
+    "settings": {
+      "index": {
+        "number_of_shards": 1,
+        "auto_expand_replicas": "0-1",
+        "refresh_interval": "5s",
+        "hidden": true
+      }
+    },
+    "mappings": {
+      "dynamic": "strict",
+      "date_detection": false,
+      "properties": {
+        "id": {
+          "type": "keyword"
+        },
+        "model": {
+          "type": "keyword",
+          "index": false,
+          "doc_values": false
+        },
+        "query": {
+          "type": "object",
+          "dynamic": "strict",
+          "properties": {
+            "field": {
+              "type": "keyword",
+              "index": false,
+              "doc_values": false
+            },
+            "value": {
+              "type": "keyword",
+              "index": false,
+              "doc_values": false
+            },
+            "rule_uuid": {
+              "type": "keyword",
+              "index": false,
+              "doc_values": false
+            },
+            "day": {
+              "type": "keyword"
+            }
+          }
+        },
+        "actor": {
+          "type": "keyword",
+          "index": false,
+          "doc_values": false
+        },
+        "observed_at": {
+          "type": "keyword",
+          "index": false,
+          "doc_values": false
+        },
+        "coverage": {
+          "type": "keyword",
+          "index": false,
+          "doc_values": false
+        },
+        "finding_count": {
+          "type": "integer",
+          "index": false,
+          "doc_values": false
+        },
+        "assessment": {
+          "type": "object",
+          "enabled": false
+        },
+        "state": {
+          "type": "keyword"
+        },
+        "revision": {
+          "type": "integer"
+        },
+        "review": {
+          "type": "object",
+          "enabled": false
+        },
+        "incident_id": {
+          "type": "keyword",
+          "index": false,
+          "doc_values": false
+        },
+        "promoted_at": {
+          "type": "keyword",
+          "index": false,
+          "doc_values": false
+        }
+      }
+    }
+  }
+}

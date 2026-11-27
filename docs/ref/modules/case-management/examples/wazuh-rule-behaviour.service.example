@@ -1,0 +1,20 @@
+# Example only. Create a dedicated user, reviewed configuration and protected credential first.
+[Unit]
+Description=Wazuh daily rule behaviour observation (one approved local scope)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=wazuh-behaviour
+Group=wazuh-behaviour
+UMask=0077
+StateDirectory=wazuh-behaviour
+StateDirectoryMode=0700
+EnvironmentFile=/etc/wazuh-behaviour/credentials.env
+ExecStart=/usr/bin/python3 /opt/wazuh-behaviour/tools/incident_rule_behaviour_runner.py --config /etc/wazuh-behaviour/policy.json --state /var/lib/wazuh-behaviour/observations.sqlite
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+TimeoutStartSec=75

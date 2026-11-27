@@ -1,0 +1,20 @@
+# Example only; use a dedicated system user and publisher-only indexer account.
+[Unit]
+Description=Wazuh shared behaviour observation publication (one approved scope)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=wazuh-behaviour-publish
+Group=wazuh-behaviour-publish
+UMask=0077
+StateDirectory=wazuh-behaviour-publish
+StateDirectoryMode=0700
+EnvironmentFile=/etc/wazuh-behaviour-publish/credentials.env
+ExecStart=/usr/bin/python3 /opt/wazuh-behaviour/tools/incident_behaviour_publish_runner.py --config /etc/wazuh-behaviour-publish/policy.json --state /var/lib/wazuh-behaviour-publish/observations.sqlite
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+TimeoutStartSec=90

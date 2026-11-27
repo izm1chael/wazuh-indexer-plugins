@@ -1,0 +1,58 @@
+{
+  "index_patterns": [
+    ".wazuh-detection-releases-v1"
+  ],
+  "priority": 100,
+  "template": {
+    "settings": {
+      "index": {
+        "number_of_shards": 1,
+        "auto_expand_replicas": "0-1",
+        "hidden": true,
+        "refresh_interval": "5s"
+      }
+    },
+    "mappings": {
+      "dynamic": "strict",
+      "date_detection": false,
+      "properties": {
+        "format": {
+          "type": "keyword"
+        },
+        "id": {
+          "type": "keyword"
+        },
+        "evidence": {
+          "type": "object",
+          "enabled": false
+        },
+        "author": {
+          "type": "keyword",
+          "index": false,
+          "doc_values": false
+        },
+        "submitted_at": {
+          "type": "date"
+        },
+        "state": {
+          "type": "keyword"
+        },
+        "revision": {
+          "type": "integer"
+        },
+        "review": {
+          "type": "object",
+          "enabled": false
+        },
+        "reservation": {
+          "type": "object",
+          "enabled": false
+        },
+        "outcome": {
+          "type": "object",
+          "enabled": false
+        }
+      }
+    }
+  }
+}

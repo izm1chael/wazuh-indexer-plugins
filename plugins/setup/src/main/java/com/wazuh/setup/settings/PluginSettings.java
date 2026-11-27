@@ -62,6 +62,55 @@ public class PluginSettings {
             Setting.boolSetting(
                     "plugins.setup.settings_update.enabled", true, Setting.Property.NodeScope);
 
+    /** Experimental incidents must be explicitly enabled on every node. */
+    public static final Setting<Boolean> INCIDENTS_ENABLED =
+            Setting.boolSetting("plugins.setup.incidents.enabled", false, Setting.Property.NodeScope);
+
+    public static final Setting<Boolean> DETECTION_RELEASES_ENABLED =
+            Setting.boolSetting("plugins.setup.detection.releases.enabled", false, Setting.Property.NodeScope);
+    public static final Setting<Boolean> BEHAVIOUR_OBSERVATIONS_ENABLED =
+            Setting.boolSetting("plugins.setup.incidents.behaviour.observations.enabled", false, Setting.Property.NodeScope);
+    public static final Setting<Boolean> BEHAVIOUR_PROMOTION_ENABLED =
+            Setting.boolSetting("plugins.setup.incidents.behaviour.promotion.enabled", false, Setting.Property.NodeScope);
+    public static final Setting<String> BEHAVIOUR_PUBLISHER =
+            Setting.simpleString("plugins.setup.incidents.behaviour.publisher", "", Setting.Property.NodeScope);
+    public static final Setting<String> BEHAVIOUR_SCOPES =
+            Setting.simpleString("plugins.setup.incidents.behaviour.approved_scopes", "", Setting.Property.NodeScope);
+    public static final Setting<Boolean> EVENT_BEHAVIOUR_ENABLED =
+            Setting.boolSetting("plugins.setup.incidents.behaviour.events.enabled", false, Setting.Property.NodeScope);
+    public static final Setting<Boolean> RULE_BEHAVIOUR_ENABLED =
+            Setting.boolSetting("plugins.setup.incidents.behaviour.rule.enabled", false, Setting.Property.NodeScope);
+    public static final Setting<Boolean> BEHAVIOUR_ENABLED =
+            Setting.boolSetting("plugins.setup.incidents.behaviour.enabled", false, Setting.Property.NodeScope);
+    public static final Setting<Boolean> WORKFLOWS_ENABLED =
+            Setting.boolSetting("plugins.setup.incidents.workflows.enabled", false, Setting.Property.NodeScope);
+    public static final Setting<Boolean> SOAR_ENABLED =
+            Setting.boolSetting("plugins.setup.incidents.soar.enabled", false, Setting.Property.NodeScope);
+    public static final Setting<String> SOAR_ACTOR =
+            Setting.simpleString("plugins.setup.incidents.soar.actor", "", Setting.Property.NodeScope);
+    public static final Setting<String> SOAR_MANAGER =
+            Setting.simpleString("plugins.setup.incidents.soar.manager_id", "", Setting.Property.NodeScope);
+    public static final Setting<String> SOAR_AGENTS =
+            Setting.simpleString("plugins.setup.incidents.soar.agents", "", Setting.Property.NodeScope);
+
+    /** Incident automation requires a separately approved rule set and service principal. */
+    public static final Setting<Boolean> AUTOMATION_ENABLED =
+            Setting.boolSetting("plugins.setup.incidents.automation.enabled", false, Setting.Property.NodeScope);
+    public static final Setting<String> AUTOMATION_ACTOR =
+            Setting.simpleString("plugins.setup.incidents.automation.actor", "", Setting.Property.NodeScope);
+    public static final Setting<String> AUTOMATION_POLICY =
+            Setting.simpleString("plugins.setup.incidents.automation.policy", "", Setting.Property.NodeScope);
+
+    /** Analytics execution is independent, default off, and limited to an explicitly configured deployment and service principal. */
+    public static final Setting<Boolean> ANALYTICS_ENABLED =
+            Setting.boolSetting("plugins.setup.incidents.analytics.enabled", false, Setting.Property.NodeScope);
+    public static final Setting<String> ANALYTICS_DEPLOYMENT =
+            Setting.simpleString("plugins.setup.incidents.analytics.deployment_id", "", Setting.Property.NodeScope);
+    public static final Setting<String> ANALYTICS_ACTOR =
+            Setting.simpleString("plugins.setup.incidents.analytics.actor", "", Setting.Property.NodeScope);
+    public static final Setting<String> ANALYTICS_POLICIES =
+            Setting.simpleString("plugins.setup.incidents.analytics.policies", "", Setting.Property.NodeScope);
+
     /**
      * Number of times an initialization task that timed out is re-attempted, each attempt separated
      * by {@link PluginSettings#BACKOFF}, before the failure is rethrown and the node shuts down. Zero

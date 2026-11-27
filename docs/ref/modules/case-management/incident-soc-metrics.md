@@ -1,0 +1,14 @@
+# SOC operational metrics
+
+POST `/_plugins/_setup/incident-metrics/report` requires the independent `cluster:admin/wazuh/incident/metrics_read` grant and incident opt-in. Request: from, until (half-open UTC creation cohort, maximum 31 days, no future end), triage_target_seconds and resolution_target_seconds (positive bounded integers). The server reports current state at search time, NOT historical as-of state. A single fixed search selects the union of the creation cohort and all currently open incidents regardless of age. Maximum 5,000 union records. Incomplete searches or oversized backlogs fail rather than truncate; reducing the cohort may not reduce an oversized open backlog. No source findings are searched, and no metrics writes are performed. Only allowlisted lifecycle fields are read; pending audit presence is reported for the cohort.
+
+## Definitions
+
+- MTTT: first triage start to first activation, across creation cohort. Closed without activation and missing timestamps are excluded from sample and reported missing. A reopen of a triage-only closure now restores triaging rather than inventing activation. This is elapsed wall time, including time spent closed before activation.
+- MTTR: creation to current closed_at, for currently closed members of the creation cohort. Reopened/open members do not count as resolved. First-close duration is separately reported for all cohort members with a valid first closure.
+- Creation-to-first-assignment: a separately named operational proxy, NOT MTTI. Detection-to-identification time remains unavailable until trusted detection and identification timestamps exist.
+- SLA targets are strictly less than target seconds: equality is a breach. Only valid completed samples enter SLA met/breached denominators; missing and invalid values are separate. Open breaches are counted separately for all current open incidents, using creation age for resolution and elapsed triage time for unactivated incidents. Unknown start times are not presumed compliant. No severity-specific, business-hours or pause policy yet.
+- Mean and nearest-rank P50/P95 are in seconds; empty samples return null, not zero. Zero elapsed is valid.
+- Classification counts reflect current closed cohort only, with unknown classification reported separately; reopened count is incidents ever reopened within the creation cohort (not number of reopen events). Backlog includes owner workload, unassigned, severity and age buckets. No detection compression ratio without verified source denominators.
+
+Metrics expose workload names under dedicated permission; they are not an individual performance ranking. This is a single-SOC operational snapshot, not an immutable historical report. Require local compilation, role qualification, load tests and comparison against hand-calculated fixture data.

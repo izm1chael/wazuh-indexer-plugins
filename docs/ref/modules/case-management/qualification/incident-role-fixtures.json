@@ -1,0 +1,280 @@
+{
+  "incident_reader": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/read"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_analyst": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/read",
+      "cluster:admin/wazuh/incident/create",
+      "cluster:admin/wazuh/incident/assign",
+      "cluster:admin/wazuh/incident/update",
+      "cluster:admin/wazuh/incident/close",
+      "cluster:admin/wazuh/incident/reopen",
+      "cluster:admin/wazuh/incident/findings",
+      "cluster:admin/wazuh/incident/collaborate"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_creator": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/create"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_no_access": {
+    "cluster_permissions": [],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_correlation_reviewer": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/correlation_preview"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_correlation_policy_reader": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/correlation_policy_read"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_correlation_policy_author": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/correlation_policy_read",
+      "cluster:admin/wazuh/incident/correlation_policy_save"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_metrics_reader": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/metrics_read"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_response_reader": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/response_read"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_response_requester": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/response_read",
+      "cluster:admin/wazuh/incident/response_request"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_response_approver": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/response_read",
+      "cluster:admin/wazuh/incident/response_approval"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_response_reporter": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/response_read",
+      "cluster:admin/wazuh/incident/response_outcome"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_playbook_operator": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/playbook_apply"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_ai_feedback": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/ai_feedback"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_tuning_propose": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/tuning_propose"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_tuning_review": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/tuning_review"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_hunt_reader": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/hunt_read"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_indicator_reader": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/indicator_read"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_indicator_writer": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/indicator_write"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_indicator_analyst": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/indicator_read",
+      "cluster:admin/wazuh/incident/indicator_write"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_analytics_reader": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/analytics_read"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_analytics_executor": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/analytics_read",
+      "cluster:admin/wazuh/incident/analytics_execute"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_automation_reader": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/automation_read"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_automation_author": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/automation_save"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_automation_executor": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/automation_execute"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_soar_dispatcher": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/soar_dispatch"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_workflow_operator": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/workflow_operate"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_entity_investigator": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/entity_investigate"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_behaviour_reader": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/behaviour_read"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_rule_behaviour_reader": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/rule_behaviour_read"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_behaviour_observation_publisher": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/behaviour_publish"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_behaviour_observation_reader": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/behaviour_observation_read"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_behaviour_observation_reviewer": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/behaviour_review"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_behaviour_observation_promoter": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/behaviour_promote"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "incident_event_behaviour_reader": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/incident/event_behaviour_read"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "detection_release_submitter": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/detection/release_submit"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "detection_release_reader": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/detection/release_read",
+      "cluster:admin/wazuh/detection/release_day"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "detection_release_reviewer": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/detection/release_review"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "endpoint": "https://indexer.example.invalid:9200",
+  "deployment_id": "00000000-0000-4000-8000-000000000001",
+  "username": "wazuh-analytics-runner",
+  "ca_file": "/etc/wazuh-analytics/ca.pem",
+  "policies": [
+    {
+      "policy_id": "00000000-0000-4000-8000-000000000002",
+      "policy_version": 1,
+      "window_minutes": 15,
+      "first_window_start": "2026-11-26T12:00:00Z"
+    }
+  ]
+}
