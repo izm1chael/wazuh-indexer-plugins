@@ -92,7 +92,7 @@ def content_check(send, e):
                        "equal": expected == actual})
     return {"test_snapshot_sha256": test["sha256"], "custom_snapshot_sha256": custom["sha256"],
             "integration_document_equal": replay.sha(test["integration"]) == replay.sha(custom["integration"]),
-            "all_integration_rule_documents_equal": test["rules"] == custom["rules"],
+            "all_integration_rule_documents_equal": replay.sha(test["rules"]) == replay.sha(custom["rules"]),
             "reviewed_rules": checks}
 
 
@@ -103,8 +103,11 @@ def population(send, e, start, end, finding):
     if finding:
         filters.append({"bool": {"should": [{"terms": {"wazuh.rule.uuid": e["changed_rules"]}},
                     {"terms": {"rule.uuid": e["changed_rules"]}}], "minimum_should_match": 1}})
+    fields = [*terms, "@timestamp"]
+    if finding:
+        fields.extend(["wazuh.rule.uuid", "rule.uuid"])
     hits = replay.search(send, "wazuh-findings-v5*" if finding else "wazuh-events-v5*", filters,
-                         MAX_FINDINGS if finding else MAX_EVENTS)
+                         MAX_FINDINGS if finding else MAX_EVENTS, fields=fields)
     counts = {rule: 0 for rule in e["changed_rules"]}
     identities = []
     for hit in hits:

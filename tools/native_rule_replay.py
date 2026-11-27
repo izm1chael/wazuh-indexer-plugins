@@ -97,10 +97,12 @@ def transport(cfg, password):
     return send
 
 
-def search(send, index, filters, cap):
-    result = send("POST", "/"+index+"/_search?allow_partial_search_results=false&ignore_unavailable=false&allow_no_indices=false&expand_wildcards=open",
-                  {"size": cap+1, "track_total_hits": True, "timeout": "10s",
-                   "seq_no_primary_term": True, "query": {"bool": {"filter": filters}}})
+def search(send, index, filters, cap, fields=None):
+    body = {"size": cap+1, "track_total_hits": True, "timeout": "10s",
+            "seq_no_primary_term": True, "query": {"bool": {"filter": filters}}}
+    if fields is not None:
+        body["_source"] = fields
+    result = send("POST", "/"+index+"/_search?allow_partial_search_results=false&ignore_unavailable=false&allow_no_indices=false&expand_wildcards=open", body)
     hits = result["hits"]["hits"]
     total = result["hits"]["total"]
     if result.get("timed_out") is not False or result.get("terminated_early") is True or result["_shards"]["failed"] != 0 or type(result["_shards"]["total"]) is not int or result["_shards"]["total"] < 1 or \
