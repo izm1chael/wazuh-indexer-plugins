@@ -99,6 +99,7 @@ public class TransportPostPromoteAction
     private final SecurityAnalyticsService securityAnalyticsService;
     private final Client client;
     private final DetectorLookupService detectorLookupService;
+    private final boolean productionPromotionFrozen;
 
     @Inject
     public TransportPostPromoteAction(
@@ -108,7 +109,15 @@ public class TransportPostPromoteAction
             EngineService engine,
             SecurityAnalyticsService securityAnalyticsService,
             Client client) {
+        this(transportService, actionFilters, spaceService, engine, securityAnalyticsService, client,
+                PluginSettings.getInstance().isProductionPromotionFrozen());
+    }
+
+    TransportPostPromoteAction(TransportService transportService, ActionFilters actionFilters,
+            SpaceService spaceService, EngineService engine, SecurityAnalyticsService securityAnalyticsService,
+            Client client, boolean productionPromotionFrozen) {
         super(PostPromoteAction.NAME, transportService, actionFilters, PostPromoteRequest::new);
+        this.productionPromotionFrozen = productionPromotionFrozen;
         this.spaceService = spaceService;
         this.engine = engine;
         this.securityAnalyticsService = securityAnalyticsService;
@@ -139,7 +148,7 @@ public class TransportPostPromoteAction
         try {
             SpaceDiff spaceDiff = MAPPER.readValue(body, SpaceDiff.class);
             this.validatePromoteRequest(spaceDiff);
-            if (Space.TEST.equals(spaceDiff.getSpace()) && PluginSettings.getInstance().isProductionPromotionFrozen()) {
+            if (Space.TEST.equals(spaceDiff.getSpace()) && productionPromotionFrozen) {
                 listener.onResponse(new MessageStatusResponse(
                         "Production promotion frozen for replay and tuning; operator approval required",
                         RestStatus.FORBIDDEN));
