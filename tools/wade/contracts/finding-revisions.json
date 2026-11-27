@@ -1,0 +1,35 @@
+{
+  "index_patterns": ["wade-v1-finding-revisions"],
+  "template": {
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "schema_version": {"type": "integer"},
+        "tenant": {"type": "keyword"},
+        "finding_id": {"type": "keyword"},
+        "revision_id": {"type": "keyword"},
+        "evidence_digest": {"type": "keyword"},
+        "rule_id": {"type": "keyword"},
+        "rule_version": {"type": "keyword"},
+        "rule_digest": {"type": "keyword"},
+        "receipt_id": {"type": "keyword"},
+        "entity_type": {"type": "keyword"},
+        "entity_id": {"type": "keyword"},
+        "window_start": {"type": "date_nanos"},
+        "window_end": {"type": "date_nanos"},
+        "as_of": {"type": "date_nanos"},
+        "observed_count": {"type": "integer"},
+        "status": {"type": "keyword"},
+        "sources": {
+          "type": "nested", "dynamic": "strict",
+          "properties": {
+            "index_name": {"type": "keyword"},
+            "index_uuid": {"type": "keyword"},
+            "document_id": {"type": "keyword"}
+          }
+        }
+      }
+    }
+  },
+  "_meta": {"wade_schema_version": 1, "status": "unregistered_reference"}
+}

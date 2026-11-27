@@ -1,0 +1,40 @@
+{
+  "index_patterns": ["wade-v1-job-state"],
+  "template": {
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "schema_version": {"type": "integer"},
+        "tenant": {"type": "keyword"},
+        "job_id": {"type": "keyword"},
+        "rule_id": {"type": "keyword"},
+        "rule_version": {"type": "keyword"},
+        "entity_type": {"type": "keyword"},
+        "entity_id": {"type": "keyword"},
+        "revision": {"type": "long"},
+        "fence": {"type": "long"},
+        "owner": {"type": "keyword"},
+        "lease_expires_at": {"type": "date_nanos"},
+        "checkpoint": {"type": "date_nanos"},
+        "receipt_id": {"type": "keyword"},
+        "pending": {
+          "type": "object", "dynamic": "strict",
+          "properties": {
+            "output_id": {"type": "keyword"},
+            "digest": {"type": "keyword"},
+            "payload": {"type": "binary", "doc_values": false}
+          }
+        },
+        "last_ack": {
+          "type": "object", "dynamic": "strict",
+          "properties": {
+            "output_id": {"type": "keyword"},
+            "digest": {"type": "keyword"},
+            "acknowledged_at": {"type": "date_nanos"}
+          }
+        }
+      }
+    }
+  },
+  "_meta": {"wade_schema_version": 1, "status": "unregistered_reference"}
+}
