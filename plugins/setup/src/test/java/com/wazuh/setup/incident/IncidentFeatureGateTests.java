@@ -26,6 +26,7 @@ public class IncidentFeatureGateTests extends OpenSearchTestCase {
         assertFalse(PluginSettings.INCIDENTS_ENABLED.get(Settings.EMPTY));
         assertFalse(PluginSettings.BEHAVIOUR_ENABLED.get(Settings.EMPTY));
         assertFalse(PluginSettings.RULE_BEHAVIOUR_ENABLED.get(Settings.EMPTY));
+        assertFalse(PluginSettings.EVENT_BEHAVIOUR_ENABLED.get(Settings.EMPTY));
         assertFalse(PluginSettings.BEHAVIOUR_OBSERVATIONS_ENABLED.get(Settings.EMPTY));
         assertFalse(PluginSettings.BEHAVIOUR_PROMOTION_ENABLED.get(Settings.EMPTY));
         assertTrue(PluginSettings.BEHAVIOUR_OBSERVATIONS_ENABLED.get(Settings.builder().put("plugins.setup.incidents.behaviour.observations.enabled", true).build()));

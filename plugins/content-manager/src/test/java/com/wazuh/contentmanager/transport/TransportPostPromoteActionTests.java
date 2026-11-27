@@ -69,6 +69,22 @@ public class TransportPostPromoteActionTests extends OpenSearchTestCase {
         org.mockito.Mockito.verifyNoInteractions(client);
     }
 
+    public void testPlanReviewRejectsDraftAndNonBooleanFlag() {
+        Client client = mock(Client.class);
+        var action = new TransportPostPromoteAction(mock(TransportService.class), mock(ActionFilters.class),
+                mock(SpaceService.class), mock(EngineService.class), mock(SecurityAnalyticsService.class), client, true);
+        for(String body : List.of(
+                TEST_TO_CUSTOM_BODY.replace("\"space\":\"test\"", "\"space\":\"draft\",\"review_plan_only\":true"),
+                TEST_TO_CUSTOM_BODY.replace("\"space\":\"test\"", "\"space\":\"test\",\"review_plan_only\":\"true\""),
+                TEST_TO_CUSTOM_BODY.replace("\"space\":\"test\"", "\"space\":\"test\",\"space\":\"test\""))) {
+            var response = new AtomicReference<MessageStatusResponse>();
+            action.doExecute(mock(Task.class), new PostPromoteRequest(body),
+                    ActionListener.wrap(response::set, e -> fail(e.getMessage())));
+            assertEquals(RestStatus.BAD_REQUEST, response.get().getStatus());
+        }
+        org.mockito.Mockito.verifyNoInteractions(client);
+    }
+
     /** Runs a test to custom promotion whose detector lookup fails with {@code failure}. */
     @SuppressWarnings("unchecked")
     private MessageStatusResponse promoteWithFailingDetectorLookup(Exception failure) {

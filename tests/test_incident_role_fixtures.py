@@ -34,6 +34,7 @@ class IncidentRoleFixturesTest(unittest.TestCase):
             "incident_entity_investigator": ("entity_investigate",),
             "incident_behaviour_reader": ("behaviour_read",),
             "incident_rule_behaviour_reader": ("rule_behaviour_read",),
+            "incident_event_behaviour_reader": ("event_behaviour_read",),
             "incident_behaviour_observation_publisher": ("behaviour_publish",),
             "incident_behaviour_observation_reader": ("behaviour_observation_read",),
             "incident_behaviour_observation_reviewer": ("behaviour_review",),
