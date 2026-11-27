@@ -85,6 +85,20 @@ public class TransportPostPromoteActionTests extends OpenSearchTestCase {
         org.mockito.Mockito.verifyNoInteractions(client);
     }
 
+    public void testReleasePreviewFingerprintAndExistingRuleUpdatesOnly() throws Exception {
+        var json=new com.fasterxml.jackson.databind.ObjectMapper();
+        String rule="00000000-0000-4000-8000-000000000001";
+        String body=TEST_TO_CUSTOM_BODY.replace("\"add\"","\"update\"").replace("\"r1\"","\""+rule+"\"");
+        var diff=json.readValue(body,com.wazuh.contentmanager.rest.model.SpaceDiff.class);
+        assertEquals(List.of(rule),TransportPostPromoteAction.releaseRuleUpdates(diff));
+        assertEquals("54cbfbc06ccf132ada57c82a1f84048a042e32ee7dbf180ecd06f12bc598a1d0",
+                PromotionPlanFingerprint.of(Map.of("changes",diff.getChanges())));
+        for(String operation:List.of("add","remove")){
+            var rejected=json.readValue(body.replace("\"update\"","\""+operation+"\""),com.wazuh.contentmanager.rest.model.SpaceDiff.class);
+            expectThrows(IllegalArgumentException.class,()->TransportPostPromoteAction.releaseRuleUpdates(rejected));
+        }
+    }
+
     /** Runs a test to custom promotion whose detector lookup fails with {@code failure}. */
     @SuppressWarnings("unchecked")
     private MessageStatusResponse promoteWithFailingDetectorLookup(Exception failure) {
