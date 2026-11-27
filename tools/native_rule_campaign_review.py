@@ -98,11 +98,13 @@ def read_campaign(path, preview_hash):
         cfg = shadow.config(stored[0])
         first = int(replay.utc(cfg["first_window"]).timestamp())
         require(type(stored[1]) is int and stored[1] < first, "Nonprospective registration")
-        windows = db.execute("SELECT start,receipt FROM windows ORDER BY start LIMIT ?", (MAX_WINDOWS+1,)).fetchall()
-        require(0 < len(windows) <= MAX_WINDOWS, "Campaign empty or exceeds review budget")
+        windows = db.execute("SELECT start,length(receipt) FROM windows ORDER BY start LIMIT ?", (MAX_WINDOWS+1,)).fetchall()
+        require(0 < len(windows) <= MAX_WINDOWS and all(0 < size <= 8_000_000 for _, size in windows) and
+                sum(size for _, size in windows) <= 64_000_000, "Campaign empty or exceeds review budget")
         receipts = []
-        for n, (start, raw) in enumerate(windows):
-            require(start == first+n*cfg["window_seconds"] and len(raw) <= 8_000_000, "Missing or oversize window")
+        for n, (start, _) in enumerate(windows):
+            require(start == first+n*cfg["window_seconds"], "Missing window")
+            raw = db.execute("SELECT receipt FROM windows WHERE start=?", (start,)).fetchone()[0]
             receipt = unique_json(raw)
             a, z = validate_receipt(receipt, cfg["replay"], preview_hash)
             require(a.timestamp() == start and z.timestamp() == start+cfg["window_seconds"], "Window identity mismatch")
