@@ -438,6 +438,9 @@ public class PluginSettings {
      * (e.g. Wazuh Cloud) deployments. Defaults to true.
      */
     /** Operator-controlled production promotion freeze while replay/tuning is underway. */
+    public static final Setting<String> PRODUCTION_APPROVAL_EXPIRES =
+            Setting.simpleString("plugins.content_manager.promotion.approved_plan_expires", "", Setting.Property.NodeScope, Setting.Property.Filtered);
+
     public static final Setting<String> PRODUCTION_APPROVED_PLAN =
             Setting.simpleString("plugins.content_manager.promotion.approved_plan_sha256", "", Setting.Property.NodeScope, Setting.Property.Filtered);
 
@@ -821,6 +824,7 @@ public class PluginSettings {
     private final boolean policyUpdateEnabled;
     private final boolean productionPromotionFrozen;
     private final String productionApprovedPlan;
+    private final String productionApprovalExpires;
     private volatile boolean isTelemetryEnabled;
     private volatile int maxIntegrations;
     private volatile int maxDecoders;
@@ -884,6 +888,7 @@ public class PluginSettings {
         this.policyUpdateEnabled = POLICY_UPDATE_ENABLED.get(settings);
         this.productionPromotionFrozen = PRODUCTION_PROMOTION_FROZEN.get(settings);
         this.productionApprovedPlan = PRODUCTION_APPROVED_PLAN.get(settings);
+        this.productionApprovalExpires = PRODUCTION_APPROVAL_EXPIRES.get(settings);
         this.isTelemetryEnabled = TELEMETRY_ENABLED.get(settings);
         this.maxIntegrations = MAX_INTEGRATIONS.get(settings);
         this.maxDecoders = MAX_DECODERS.get(settings);
@@ -1213,6 +1218,7 @@ public class PluginSettings {
      */
     public boolean isProductionPromotionFrozen() { return this.productionPromotionFrozen; }
     public String getProductionApprovedPlan() { return this.productionApprovedPlan; }
+    public String getProductionApprovalExpires() { return this.productionApprovalExpires; }
 
     public boolean isPolicyUpdateEnabled() {
         return this.policyUpdateEnabled;

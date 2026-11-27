@@ -37,6 +37,17 @@ public class PromotionPlanFingerprintTests extends OpenSearchTestCase {
         assertFalse(PromotionPlanFingerprint.approved(null,hash));
         assertFalse(PromotionPlanFingerprint.approved(hash.toUpperCase(java.util.Locale.ROOT),hash));
     }
+    public void testApprovalExpiryIsBoundedAndCanonical() {
+        var now=java.time.Instant.parse("2026-11-25T12:00:00Z");
+        assertTrue(PromotionPlanFingerprint.active("2026-11-25T13:00:00Z",now));
+        assertFalse(PromotionPlanFingerprint.active("2026-11-25T13:00:01Z",now));
+        assertFalse(PromotionPlanFingerprint.active("2026-11-25T12:00:00Z",now));
+        assertFalse(PromotionPlanFingerprint.active("2026-11-25T11:59:59Z",now));
+        assertFalse(PromotionPlanFingerprint.active("2026-11-25T12:30:00.000Z",now));
+        assertFalse(PromotionPlanFingerprint.active("2026-02-30T12:30:00Z",now));
+        assertFalse(PromotionPlanFingerprint.active("",now));
+        assertFalse(PromotionPlanFingerprint.active(null,now));
+    }
     public void testChangedOldVersionAndApplyPayloadInvalidateApproval() {
         var plan=new LinkedHashMap<String,Object>();
         plan.put("apply",Map.of("rule",Map.of("enabled",true)));

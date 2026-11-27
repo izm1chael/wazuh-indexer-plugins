@@ -1175,6 +1175,7 @@ public class ContentManagerPlugin extends Plugin
                 PluginSettings.POLICY_UPDATE_ENABLED,
                 PluginSettings.PRODUCTION_PROMOTION_FROZEN,
                 PluginSettings.PRODUCTION_APPROVED_PLAN,
+                PluginSettings.PRODUCTION_APPROVAL_EXPIRES,
                 PluginSettings.MAX_INTEGRATIONS,
                 PluginSettings.MAX_DECODERS,
                 PluginSettings.MAX_RULES,

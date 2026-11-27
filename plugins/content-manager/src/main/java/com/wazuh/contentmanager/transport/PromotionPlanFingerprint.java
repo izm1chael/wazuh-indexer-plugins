@@ -49,6 +49,16 @@ final class PromotionPlanFingerprint {
         }
         return node;
     }
+    /** Fail closed for missing, malformed, expired or excessively long approval windows. */
+    static boolean active(String expiry, java.time.Instant now) {
+        if (expiry == null || !expiry.matches("[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z")) return false;
+        try {
+            java.time.Instant end = java.time.Instant.parse(expiry);
+            return expiry.equals(end.toString()) && end.isAfter(now) && !end.isAfter(now.plusSeconds(3600));
+        } catch (java.time.DateTimeException e) {
+            return false;
+        }
+    }
     static boolean approved(String configured,String actual){
         return configured!=null&&configured.matches("[a-f0-9]{64}")&&configured.equals(actual);
     }

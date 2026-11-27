@@ -102,6 +102,7 @@ public class TransportPostPromoteAction
     private final DetectorLookupService detectorLookupService;
     private final boolean productionPromotionFrozen;
     private final String productionApprovedPlan;
+    private final String productionApprovalExpires;
 
     @Inject
     public TransportPostPromoteAction(
@@ -112,21 +113,23 @@ public class TransportPostPromoteAction
             SecurityAnalyticsService securityAnalyticsService,
             Client client) {
         this(transportService, actionFilters, spaceService, engine, securityAnalyticsService, client,
-                PluginSettings.getInstance().isProductionPromotionFrozen(), PluginSettings.getInstance().getProductionApprovedPlan());
+                PluginSettings.getInstance().isProductionPromotionFrozen(), PluginSettings.getInstance().getProductionApprovedPlan(),
+                PluginSettings.getInstance().getProductionApprovalExpires());
     }
 
     TransportPostPromoteAction(TransportService transportService, ActionFilters actionFilters,
             SpaceService spaceService, EngineService engine, SecurityAnalyticsService securityAnalyticsService,
             Client client, boolean productionPromotionFrozen) {
-        this(transportService, actionFilters, spaceService, engine, securityAnalyticsService, client, productionPromotionFrozen, "");
+        this(transportService, actionFilters, spaceService, engine, securityAnalyticsService, client, productionPromotionFrozen, "", "");
     }
 
     TransportPostPromoteAction(TransportService transportService, ActionFilters actionFilters,
             SpaceService spaceService, EngineService engine, SecurityAnalyticsService securityAnalyticsService,
-            Client client, boolean productionPromotionFrozen, String productionApprovedPlan) {
+            Client client, boolean productionPromotionFrozen, String productionApprovedPlan, String productionApprovalExpires) {
         super(PostPromoteAction.NAME, transportService, actionFilters, PostPromoteRequest::new);
         this.productionPromotionFrozen = productionPromotionFrozen;
         this.productionApprovedPlan = productionApprovedPlan;
+        this.productionApprovalExpires = productionApprovalExpires;
         this.spaceService = spaceService;
         this.engine = engine;
         this.securityAnalyticsService = securityAnalyticsService;
@@ -167,7 +170,8 @@ public class TransportPostPromoteAction
             if (reviewOnly && !Space.TEST.equals(spaceDiff.getSpace()))
                 throw new IllegalArgumentException("Plan review applies only to Test to Custom");
             if (Space.TEST.equals(spaceDiff.getSpace()) && productionPromotionFrozen && !reviewOnly &&
-                    (productionApprovedPlan == null || !productionApprovedPlan.matches("[a-f0-9]{64}"))) {
+                    (productionApprovedPlan == null || !productionApprovedPlan.matches("[a-f0-9]{64}") ||
+                            !PromotionPlanFingerprint.active(productionApprovalExpires, java.time.Instant.now()))) {
                 listener.onResponse(new MessageStatusResponse(
                         "Production promotion frozen for replay and tuning; operator approval required",
                         RestStatus.FORBIDDEN));
@@ -781,8 +785,9 @@ public class TransportPostPromoteAction
                     listener.onResponse(new MessageStatusResponse("review_plan_sha256=" + digest, RestStatus.OK));
                     return;
                 }
-                if (!PromotionPlanFingerprint.approved(productionApprovedPlan, digest)) {
-                    listener.onResponse(new MessageStatusResponse("Production promotion plan differs from approved review", RestStatus.FORBIDDEN));
+                if (!PromotionPlanFingerprint.approved(productionApprovedPlan, digest) ||
+                        !PromotionPlanFingerprint.active(productionApprovalExpires, java.time.Instant.now())) {
+                    listener.onResponse(new MessageStatusResponse("Production promotion plan differs from approved review or approval expired", RestStatus.FORBIDDEN));
                     return;
                 }
             } catch (RuntimeException e) {
