@@ -1,0 +1,9 @@
+# Disposable RC2 mapping/CAS probe
+
+The probe is an explicitly opted-in HTTPS write test for a separate secured cluster with name wade-lab-* and an operator-verified cluster UUID. Use two data nodes, a trusted CA and a temporary lab principal with access only to wade-qualification-* and cluster identity. Supply the authorization header in WADE_LAB_AUTHORIZATION (not command line or repository). Never use a production endpoint or production credentials. From the Indexer checkout:
+
+    python3 -B tools/wade/lab_probe.py --origin https://localhost:9200 --ca /path/to/lab-ca.pem --cluster-name wade-lab-test --cluster-uuid ACTUAL_LAB_UUID --out /private/path/new-probe.json --allow-disposable-writes
+
+The script creates five unique test indexes, using the exact proposed mappings but synthetic generic documents, requiring one replica and fully acknowledged writes. It checks create conflicts, exact real-time GET, sequence/primary-term CAS, stale CAS rejection and rejection of an unknown field. No delete or template installation; preserve the listed indexes for inspection then dispose of the entire lab under operator control. Failure may leave partial indexes. Output contains run ID, generated index names and per-index statuses; no credentials or raw response bodies. Four mock tests passed, added to the offline gate. The actual secured-cluster probe is not run in this session. A pass does not prove Java serialization, source completeness, native plugin ABI, tenant isolation, failover, authorization or production readiness.
+
+The native composition candidate now instantiates IndexReplayEvidence instead of taking a generic promotion evidence implementation; capture and revoke remain governed by the host evidence authority. Uncompiled against RC2; no registration or activation.

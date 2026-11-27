@@ -110,7 +110,8 @@ def main():
         commands=[('java-reference',['sh','tools/wade/test-analytics.sh'],600),
                   ('python-native',['python3','-B','-m','unittest','discover','-s','tools/wade/native','-v'],600),
                   ('mapping-contracts',['python3','-B','-m','unittest','discover','-s','tools/wade/contracts','-v'],120),
-                  ('qualification-selftest',['python3','-B','tools/wade/test_qualify.py'],120)]
+                  ('qualification-selftest',['python3','-B','tools/wade/test_qualify.py'],120),
+                  ('lab-probe-selftest',['python3','-B','tools/wade/test_lab_probe.py'],120)]
         for name,command,timeout in commands: steps.append(step(root,out,name,command,timeout))
         if dashboard:
             import shutil

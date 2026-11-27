@@ -30,15 +30,21 @@ public final class NativeTemporalRuntime {
     private final IndexTemporalJobs jobs;
     private final TemporalJobRunner runner;
     private final PairedTemporalReplay replay;
+    private final IndexReplayEvidence evidence;
 
     public NativeTemporalRuntime(Client scopedClient,Context context,TemporalPromotion.Rule rule,WindowService.Scope scope,
             TemporalAdmission.InventorySource inventory,OpenSearchTemporalReader.IdentityFence fence,
-            TemporalPromotion.Evidence evidence,Clock clock,Settings settings) {
+            IndexReplayEvidence.Authority evidenceAuthority,Duration evidenceMaxAge,Clock clock,Settings settings) {
         this.context=Objects.requireNonNull(context);this.rule=Objects.requireNonNull(rule);this.scope=Objects.requireNonNull(scope);
         if(!rule.tenant().equals(scope.tenant())||!scope.kind().equals("AGENT"))throw new IllegalArgumentException("scope mismatch");
         var backend=new OpenSearchWindowBackend(scopedClient,settings.timeoutSeconds(),context::requireWorker);
         var reader=new OpenSearchTemporalReader(scopedClient,context::requireWorker,fence,settings.timeoutSeconds());
         registry=new IndexTemporalRegistry(backend,rule,settings.writesEnabled());
+        replay=new PairedTemporalReplay((actor,a,b,item)->{
+            sameActor(actor);requireScope(item.scope());context.requireReplay(a,b,item);
+            if(!definition(a.policy().version()).equals(a)||!definition(b.policy().version()).equals(b))throw new SecurityException("unregistered revision");
+        },inventory,reader,clock);
+        evidence=new IndexReplayEvidence(backend,rule,replay,evidenceAuthority,clock,evidenceMaxAge,settings.writesEnabled(),settings.minBenign(),settings.minMalicious());
         promotion=new TemporalPromotion(rule,registry,registry,(actor,r,action)->{
             sameActor(actor);context.requirePromotion(r,action);
         },evidence,clock,settings.activationEnabled(),settings.minBenign(),settings.minMalicious());
@@ -51,10 +57,6 @@ public final class NativeTemporalRuntime {
         runner=new TemporalJobRunner((actor,job)->{
             sameActor(actor);requireScope(job.scope());context.requireJob(job);
         },jobs,service,windows,clock);
-        replay=new PairedTemporalReplay((actor,a,b,item)->{
-            sameActor(actor);requireScope(item.scope());context.requireReplay(a,b,item);
-            if(!definition(a.policy().version()).equals(a)||!definition(b.policy().version()).equals(b))throw new SecurityException("unregistered revision");
-        },inventory,reader,clock);
     }
     public boolean provision(TemporalAdmission.Definition baseline){
         context.requireRegistryWrite(rule);return registry.provision(new TemporalPromotion.Revision(baseline,principal()));
@@ -64,6 +66,12 @@ public final class NativeTemporalRuntime {
     }
     public PairedTemporalReplay.Report replay(String champion,String challenger,List<PairedTemporalReplay.Case> cases,int minBenign,int minMalicious){
         return replay.run(principal(),definition(champion),definition(challenger),cases,minBenign,minMalicious);
+    }
+    public String captureEvidence(IndexReplayEvidence.Kind kind,String attestation,String champion,String challenger,List<PairedTemporalReplay.Case> cases,int minBenign,int minMalicious){
+        return evidence.capture(principal(),kind,attestation,definition(champion),definition(challenger),cases,minBenign,minMalicious);
+    }
+    public boolean revokeEvidence(IndexReplayEvidence.Kind kind,String receipt){
+        principal();return evidence.revoke(kind,receipt);
     }
     public boolean approve(long expected,String replayReceipt,String shadowReceipt,Duration ttl){return promotion.approve(principal(),expected,replayReceipt,shadowReceipt,ttl);}
     public boolean activate(long expected){return promotion.activate(principal(),expected);}
