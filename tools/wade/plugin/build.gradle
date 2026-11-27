@@ -51,6 +51,7 @@ sourceSets {
       include 'com/wazuh/wade/PairedTemporalReplay.java'
       include 'com/wazuh/wade/TemporalPromotion.java'
       include 'com/wazuh/wade/IndexTemporalRegistry.java'
+      include 'com/wazuh/wade/IndexReplayEvidence.java'
       include 'com/wazuh/wade/TemporalJobRunner.java'
       include 'com/wazuh/wade/IndexTemporalJobs.java'
       include 'com/wazuh/wade/IndexWindowStore.java'
