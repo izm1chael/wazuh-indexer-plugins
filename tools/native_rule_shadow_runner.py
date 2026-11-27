@@ -19,7 +19,7 @@ def config(raw):
         raise ValueError("Invalid shadow policy")
     start = replay.utc(value["first_window"])
     seconds = value["window_seconds"]
-    if type(seconds) is not int or not 300 <= seconds <= 3600 or 86400 % seconds or int(start.timestamp()) % seconds or start.microsecond:
+    if type(seconds) is not int or not 300 <= seconds <= 3600 or 86400 % seconds or int(start.timestamp()) % seconds or start.microsecond or value["first_window"] != iso(start):
         raise ValueError("Invalid UTC window alignment")
     # No historical bootstrap masquerading as a prospective run.
     core = value["replay"]
