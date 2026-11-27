@@ -63,7 +63,7 @@ def config(raw):
         raise ValueError("Invalid account")
     identity(cfg["integration"])
     start, end = utc(cfg["from"]), utc(cfg["until"])
-    if not dt.timedelta(0) < end-start <= dt.timedelta(days=1):
+    if any(not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", cfg[k]) for k in ("from", "until")) or not dt.timedelta(0) < end-start <= dt.timedelta(days=1):
         raise ValueError("Expected bounded closed interval")
     for key in ("expected_test_sha256", "expected_custom_sha256"):
         if cfg[key] is not None and (not isinstance(cfg[key], str) or not re.fullmatch(r"[a-f0-9]{64}", cfg[key])):
@@ -98,12 +98,12 @@ def transport(cfg, password):
 
 
 def search(send, index, filters, cap):
-    result = send("POST", "/"+index+"/_search?allow_partial_search_results=false",
+    result = send("POST", "/"+index+"/_search?allow_partial_search_results=false&ignore_unavailable=false&allow_no_indices=false&expand_wildcards=open",
                   {"size": cap+1, "track_total_hits": True, "timeout": "10s",
                    "seq_no_primary_term": True, "query": {"bool": {"filter": filters}}})
     hits = result["hits"]["hits"]
     total = result["hits"]["total"]
-    if result.get("timed_out") is not False or result.get("terminated_early") is True or result["_shards"]["failed"] != 0 or \
+    if result.get("timed_out") is not False or result.get("terminated_early") is True or result["_shards"]["failed"] != 0 or type(result["_shards"]["total"]) is not int or result["_shards"]["total"] < 1 or \
             total["relation"] != "eq" or type(total["value"]) is not int or total["value"] != len(hits) or len(hits) > cap:
         raise ValueError("Incomplete or over-cap search")
     seen = set()
