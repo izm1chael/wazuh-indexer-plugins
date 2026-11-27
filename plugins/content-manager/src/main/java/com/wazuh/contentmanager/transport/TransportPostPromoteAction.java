@@ -103,6 +103,9 @@ public class TransportPostPromoteAction
     private final boolean productionPromotionFrozen;
     private final String productionApprovedPlan;
     private final String productionApprovalExpires;
+    private final org.opensearch.threadpool.ThreadPool releaseThreadPool;
+    private final DetectionReleaseReservation releaseReservation;
+    private record ReleaseCaller(String actor, java.util.function.Supplier<org.opensearch.common.util.concurrent.ThreadContext.StoredContext> context) {}
 
     @Inject
     public TransportPostPromoteAction(
@@ -111,25 +114,28 @@ public class TransportPostPromoteAction
             SpaceService spaceService,
             EngineService engine,
             SecurityAnalyticsService securityAnalyticsService,
-            Client client) {
+            Client client, org.opensearch.threadpool.ThreadPool threadPool) {
         this(transportService, actionFilters, spaceService, engine, securityAnalyticsService, client,
                 PluginSettings.getInstance().isProductionPromotionFrozen(), PluginSettings.getInstance().getProductionApprovedPlan(),
-                PluginSettings.getInstance().getProductionApprovalExpires());
+                PluginSettings.getInstance().getProductionApprovalExpires(), threadPool);
     }
 
     TransportPostPromoteAction(TransportService transportService, ActionFilters actionFilters,
             SpaceService spaceService, EngineService engine, SecurityAnalyticsService securityAnalyticsService,
             Client client, boolean productionPromotionFrozen) {
-        this(transportService, actionFilters, spaceService, engine, securityAnalyticsService, client, productionPromotionFrozen, "", "");
+        this(transportService, actionFilters, spaceService, engine, securityAnalyticsService, client, productionPromotionFrozen, "", "", null);
     }
 
     TransportPostPromoteAction(TransportService transportService, ActionFilters actionFilters,
             SpaceService spaceService, EngineService engine, SecurityAnalyticsService securityAnalyticsService,
-            Client client, boolean productionPromotionFrozen, String productionApprovedPlan, String productionApprovalExpires) {
+            Client client, boolean productionPromotionFrozen, String productionApprovedPlan, String productionApprovalExpires,
+            org.opensearch.threadpool.ThreadPool threadPool) {
         super(PostPromoteAction.NAME, transportService, actionFilters, PostPromoteRequest::new);
         this.productionPromotionFrozen = productionPromotionFrozen;
         this.productionApprovedPlan = productionApprovedPlan;
         this.productionApprovalExpires = productionApprovalExpires;
+        this.releaseThreadPool = threadPool;
+        this.releaseReservation = threadPool == null ? null : new DetectionReleaseReservation(client, threadPool);
         this.spaceService = spaceService;
         this.engine = engine;
         this.securityAnalyticsService = securityAnalyticsService;
@@ -178,6 +184,14 @@ public class TransportPostPromoteAction
                 return;
             }
 
+            final ReleaseCaller releaseCaller;
+            if (Space.TEST.equals(spaceDiff.getSpace()) && productionPromotionFrozen && !reviewOnly) {
+                if (releaseReservation == null) throw DetectionReleaseReservation.denied();
+                // Reject unsupported resources before gathering; recheck the captured plan at reservation.
+                releaseRuleUpdates(spaceDiff);
+                releaseCaller = new ReleaseCaller(DetectionReleaseReservation.principal(releaseThreadPool),
+                        releaseThreadPool.getThreadContext().newRestorableContext(false));
+            } else releaseCaller = null;
             this.validateNoDetectorLeftEmptyAsync(
                     spaceDiff,
                     ActionListener.wrap(
@@ -187,7 +201,7 @@ public class TransportPostPromoteAction
                                     listener.onResponse(new MessageStatusResponse(rejection, RestStatus.BAD_REQUEST));
                                     return;
                                 }
-                                this.gatherPromotionDataAsync(spaceDiff, reviewOnly, listener);
+                                this.gatherPromotionDataAsync(spaceDiff, reviewOnly, releaseCaller, listener);
                             },
                             e -> respondWithDetectorGuardError(listener, e)));
         } catch (IllegalArgumentException e) {
@@ -211,7 +225,7 @@ public class TransportPostPromoteAction
     // ── Gathering phase ──────────────────────────────────────────────────────
 
     private void gatherPromotionDataAsync(
-            SpaceDiff spaceDiff, boolean reviewOnly, ActionListener<MessageStatusResponse> listener) {
+            SpaceDiff spaceDiff, boolean reviewOnly, ReleaseCaller releaseCaller, ActionListener<MessageStatusResponse> listener) {
         Space sourceSpace = spaceDiff.getSpace();
         Space targetSpace = sourceSpace.promote();
         SpaceDiff.Changes changes = spaceDiff.getChanges();
@@ -290,6 +304,7 @@ public class TransportPostPromoteAction
                                                             rulesToDelete,
                                                             spaceDiff,
                                                             reviewOnly,
+                                                            releaseCaller,
                                                             listener),
                                             e -> respondWithError(listener, e)));
                         },
@@ -312,6 +327,7 @@ public class TransportPostPromoteAction
             Set<String> rulesToDelete,
             SpaceDiff spaceDiff,
             boolean reviewOnly,
+            ReleaseCaller releaseCaller,
             ActionListener<MessageStatusResponse> listener) {
         this.spaceService.buildEnginePayload(
                 policyDocument,
@@ -353,7 +369,7 @@ public class TransportPostPromoteAction
                                                             DELETE_RESOURCE_TYPES,
                                                             0,
                                                             ActionListener.wrap(
-                                                                    v2 -> afterGatheringPhase(context, spaceDiff, reviewOnly, listener),
+                                                                    v2 -> afterGatheringPhase(context, spaceDiff, reviewOnly, releaseCaller, listener),
                                                                     e -> respondWithError(listener, e))),
                                             e -> respondWithError(listener, e)));
                         },
@@ -768,6 +784,7 @@ public class TransportPostPromoteAction
             PromotionContext context,
             SpaceDiff spaceDiff,
             boolean reviewOnly,
+            ReleaseCaller releaseCaller,
             ActionListener<MessageStatusResponse> listener) {
         Space targetSpace = spaceDiff.getSpace().promote();
         if (targetSpace == Space.CUSTOM && (reviewOnly || productionPromotionFrozen)) {
@@ -790,12 +807,65 @@ public class TransportPostPromoteAction
                     listener.onResponse(new MessageStatusResponse("Production promotion plan differs from approved review or approval expired", RestStatus.FORBIDDEN));
                     return;
                 }
+                reserveReleaseAndApply(context, spaceDiff, releaseCaller, digest, listener);
+                return;
             } catch (RuntimeException e) {
-                listener.onResponse(new MessageStatusResponse("Production promotion plan cannot be fingerprinted", RestStatus.CONFLICT));
+                listener.onResponse(new MessageStatusResponse("Production promotion plan or release authorization unavailable", RestStatus.CONFLICT));
                 return;
             }
         }
 
+        applyGatheredPlan(context, targetSpace, listener);
+    }
+
+    static List<String> releaseRuleUpdates(SpaceDiff diff) {
+        var changes=diff.getChanges();
+        if (changes==null||changes.getPolicy()==null||!changes.getPolicy().isEmpty()||
+                changes.getIntegrations()==null||!changes.getIntegrations().isEmpty()||
+                changes.getDecoders()==null||!changes.getDecoders().isEmpty()||
+                changes.getFilters()==null||!changes.getFilters().isEmpty()||
+                changes.getKvdbs()==null||!changes.getKvdbs().isEmpty()||
+                changes.getRules()==null||changes.getRules().isEmpty()||changes.getRules().size()>20)
+            throw new IllegalArgumentException("Frozen production release supports existing rule updates only");
+        var ids=new java.util.TreeSet<String>();
+        for(var item:changes.getRules()){
+            if(item==null||item.getOperation()!=SpaceDiff.Operation.UPDATE||!ids.add(DetectionRelease.uuid(item.getId())))
+                throw new IllegalArgumentException("Exact distinct rule updates required");
+        }
+        return List.copyOf(ids);
+    }
+
+    private void reserveReleaseAndApply(PromotionContext context,SpaceDiff diff,ReleaseCaller caller,String digest,
+            ActionListener<MessageStatusResponse> listener) {
+        if(caller==null||releaseReservation==null)throw DetectionReleaseReservation.denied();
+        List<String> rules=releaseRuleUpdates(diff);
+        try(var ignored=caller.context().get()){
+            if(!caller.actor().equals(DetectionReleaseReservation.principal(releaseThreadPool)))throw DetectionReleaseReservation.denied();
+            releaseReservation.reserve(digest,caller.actor(),rules,productionApprovalExpires,ActionListener.wrap(reserved->{
+                if(!PromotionPlanFingerprint.active(productionApprovalExpires,java.time.Instant.now())){
+                    // Reservation has already been consumed. Never re-open it after an uncertain attempt.
+                    listener.onResponse(new MessageStatusResponse("Release expired after reservation; inspect ledger",RestStatus.CONFLICT));
+                    return;
+                }
+                var terminal=new java.util.concurrent.atomic.AtomicBoolean();
+                ActionListener<MessageStatusResponse> result=ActionListener.wrap(response->{
+                    if(!terminal.compareAndSet(false,true))return;
+                    try{
+                        releaseReservation.report(reserved,response.getStatus().getStatus(),ActionListener.wrap(
+                                saved->listener.onResponse(response),
+                                error->listener.onResponse(new MessageStatusResponse("Native result not recorded; inspect reserved release and actual Custom state",RestStatus.CONFLICT))));
+                    }catch(Exception e){
+                        listener.onResponse(new MessageStatusResponse("Native result not recorded; inspect reserved release and actual Custom state",RestStatus.CONFLICT));
+                    }
+                },error->{
+                    if(terminal.compareAndSet(false,true))listener.onFailure(error);
+                });
+                try{applyGatheredPlan(context,Space.CUSTOM,result);}catch(Exception e){result.onFailure(e);}
+            },error->listener.onResponse(new MessageStatusResponse("Release reservation unavailable or already consumed",RestStatus.CONFLICT))));
+        }
+    }
+
+    private void applyGatheredPlan(PromotionContext context,Space targetSpace,ActionListener<MessageStatusResponse> listener) {
         if ((targetSpace == Space.TEST || targetSpace == Space.CUSTOM)
                 && this.hasEngineRelatedChanges(context)) {
             invokeEngineAndConsolidate(context, targetSpace, listener);
