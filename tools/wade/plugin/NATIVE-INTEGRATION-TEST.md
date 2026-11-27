@@ -1,0 +1,7 @@
+# Embedded two-node native integration candidate
+
+Run from Indexer checkout after resolving the exact RC2 OpenSearch artifacts:
+
+    ./gradlew -p tools/wade/plugin --no-daemon -Dopensearch.version=3.6.0-SNAPSHOT test --tests com.wazuh.wade.plugin.NativeTemporalRuntimeTests
+
+Use the actual RC2 artifact version if different. This is an uncompiled native integration test candidate; no test result is claimed. It follows the pinned ResourceLockServiceIT and ContentManagerPluginIT OpenSearchIntegTestCase patterns. It requires the embedded internal test cluster, two data nodes, strict committed mappings loaded as test resources, and synthetic events in a private backing-index-shaped test index. It exercises the actual OpenSearchWindowBackend and OpenSearchTemporalReader through NativeTemporalRuntime: create rule revisions, capture replay and disjoint shadow evidence, independently approve/activate, provision job, evaluate one window, verify persisted finding and checkpoint, deactivate and deny unauthorized drain/new evaluation. Source/attestation/role authorities are deliberately fixture-only. This is not secured RBAC testing, actual WCS ingestion, PIT stability, real failover or a native job registration test. The separate lab_probe.py requires an explicitly identified secured disposable cluster and checks document protocol via HTTPS. Both must be run and repaired locally against exact RC2 APIs; never point embedded tests at an external SIEM. The plugin remains unregistered for detection work. No cluster tests executed here.

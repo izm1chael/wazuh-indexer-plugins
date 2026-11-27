@@ -66,3 +66,10 @@ sourceSets {
     }
   }
 }
+
+// Actual native test candidate, independent from the pure-JDK reference harness.
+sourceSets {
+  test {
+    resources { srcDir '../contracts'; include '*.json' }
+  }
+}
