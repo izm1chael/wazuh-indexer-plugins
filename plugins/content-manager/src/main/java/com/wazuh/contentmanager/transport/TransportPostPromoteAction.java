@@ -73,7 +73,8 @@ public class TransportPostPromoteAction
         extends HandledTransportAction<PostPromoteRequest, MessageStatusResponse> {
 
     private static final Logger log = LogManager.getLogger(TransportPostPromoteAction.class);
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper MAPPER = new ObjectMapper().enable(com.fasterxml.jackson.core.JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
+            .enable(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
     /** All resource types in the order they should be processed during consolidation. */
     private static final List<String> APPLY_RESOURCE_TYPES =
@@ -100,6 +101,7 @@ public class TransportPostPromoteAction
     private final Client client;
     private final DetectorLookupService detectorLookupService;
     private final boolean productionPromotionFrozen;
+    private final String productionApprovedPlan;
 
     @Inject
     public TransportPostPromoteAction(
@@ -110,14 +112,21 @@ public class TransportPostPromoteAction
             SecurityAnalyticsService securityAnalyticsService,
             Client client) {
         this(transportService, actionFilters, spaceService, engine, securityAnalyticsService, client,
-                PluginSettings.getInstance().isProductionPromotionFrozen());
+                PluginSettings.getInstance().isProductionPromotionFrozen(), PluginSettings.getInstance().getProductionApprovedPlan());
     }
 
     TransportPostPromoteAction(TransportService transportService, ActionFilters actionFilters,
             SpaceService spaceService, EngineService engine, SecurityAnalyticsService securityAnalyticsService,
             Client client, boolean productionPromotionFrozen) {
+        this(transportService, actionFilters, spaceService, engine, securityAnalyticsService, client, productionPromotionFrozen, "");
+    }
+
+    TransportPostPromoteAction(TransportService transportService, ActionFilters actionFilters,
+            SpaceService spaceService, EngineService engine, SecurityAnalyticsService securityAnalyticsService,
+            Client client, boolean productionPromotionFrozen, String productionApprovedPlan) {
         super(PostPromoteAction.NAME, transportService, actionFilters, PostPromoteRequest::new);
         this.productionPromotionFrozen = productionPromotionFrozen;
+        this.productionApprovedPlan = productionApprovedPlan;
         this.spaceService = spaceService;
         this.engine = engine;
         this.securityAnalyticsService = securityAnalyticsService;
@@ -146,9 +155,19 @@ public class TransportPostPromoteAction
         }
 
         try {
-            SpaceDiff spaceDiff = MAPPER.readValue(body, SpaceDiff.class);
+            JsonNode parsed = MAPPER.readTree(body);
+            if (!(parsed instanceof com.fasterxml.jackson.databind.node.ObjectNode object))
+                throw new IllegalArgumentException(Constants.E_400_INVALID_REQUEST_BODY);
+            JsonNode reviewFlag = object.remove("review_plan_only");
+            if (reviewFlag != null && (!reviewFlag.isBoolean() || !reviewFlag.booleanValue()))
+                throw new IllegalArgumentException("review_plan_only must be true when supplied");
+            boolean reviewOnly = reviewFlag != null;
+            SpaceDiff spaceDiff = MAPPER.treeToValue(object, SpaceDiff.class);
             this.validatePromoteRequest(spaceDiff);
-            if (Space.TEST.equals(spaceDiff.getSpace()) && productionPromotionFrozen) {
+            if (reviewOnly && !Space.TEST.equals(spaceDiff.getSpace()))
+                throw new IllegalArgumentException("Plan review applies only to Test to Custom");
+            if (Space.TEST.equals(spaceDiff.getSpace()) && productionPromotionFrozen && !reviewOnly &&
+                    (productionApprovedPlan == null || !productionApprovedPlan.matches("[a-f0-9]{64}"))) {
                 listener.onResponse(new MessageStatusResponse(
                         "Production promotion frozen for replay and tuning; operator approval required",
                         RestStatus.FORBIDDEN));
@@ -164,7 +183,7 @@ public class TransportPostPromoteAction
                                     listener.onResponse(new MessageStatusResponse(rejection, RestStatus.BAD_REQUEST));
                                     return;
                                 }
-                                this.gatherPromotionDataAsync(spaceDiff, listener);
+                                this.gatherPromotionDataAsync(spaceDiff, reviewOnly, listener);
                             },
                             e -> respondWithDetectorGuardError(listener, e)));
         } catch (IllegalArgumentException e) {
@@ -188,7 +207,7 @@ public class TransportPostPromoteAction
     // ── Gathering phase ──────────────────────────────────────────────────────
 
     private void gatherPromotionDataAsync(
-            SpaceDiff spaceDiff, ActionListener<MessageStatusResponse> listener) {
+            SpaceDiff spaceDiff, boolean reviewOnly, ActionListener<MessageStatusResponse> listener) {
         Space sourceSpace = spaceDiff.getSpace();
         Space targetSpace = sourceSpace.promote();
         SpaceDiff.Changes changes = spaceDiff.getChanges();
@@ -266,6 +285,7 @@ public class TransportPostPromoteAction
                                                             filtersToDelete,
                                                             rulesToDelete,
                                                             spaceDiff,
+                                                            reviewOnly,
                                                             listener),
                                             e -> respondWithError(listener, e)));
                         },
@@ -287,6 +307,7 @@ public class TransportPostPromoteAction
             Set<String> filtersToDelete,
             Set<String> rulesToDelete,
             SpaceDiff spaceDiff,
+            boolean reviewOnly,
             ActionListener<MessageStatusResponse> listener) {
         this.spaceService.buildEnginePayload(
                 policyDocument,
@@ -328,7 +349,7 @@ public class TransportPostPromoteAction
                                                             DELETE_RESOURCE_TYPES,
                                                             0,
                                                             ActionListener.wrap(
-                                                                    v2 -> afterGatheringPhase(context, spaceDiff, listener),
+                                                                    v2 -> afterGatheringPhase(context, spaceDiff, reviewOnly, listener),
                                                                     e -> respondWithError(listener, e))),
                                             e -> respondWithError(listener, e)));
                         },
@@ -742,8 +763,33 @@ public class TransportPostPromoteAction
     private void afterGatheringPhase(
             PromotionContext context,
             SpaceDiff spaceDiff,
+            boolean reviewOnly,
             ActionListener<MessageStatusResponse> listener) {
         Space targetSpace = spaceDiff.getSpace().promote();
+        if (targetSpace == Space.CUSTOM && (reviewOnly || productionPromotionFrozen)) {
+            try {
+                Map<String,Object> apply = new java.util.TreeMap<>();
+                Map<String,Object> deletes = new java.util.TreeMap<>();
+                for (String type : APPLY_RESOURCE_TYPES) apply.put(type, context.getApplyMap(type));
+                for (String type : DELETE_RESOURCE_TYPES) deletes.put(type, new java.util.TreeSet<>(context.getDeleteSet(type)));
+                String digest = PromotionPlanFingerprint.of(Map.of(
+                        "format", "wazuh-native-promotion-plan-v1", "target", context.targetSpace,
+                        "changes", spaceDiff.getChanges(), "apply", apply, "delete", deletes,
+                        "old_versions", context.oldVersions, "delete_snapshots", context.deleteSnapshots,
+                        "engine_payload", context.enginePayload));
+                if (reviewOnly) {
+                    listener.onResponse(new MessageStatusResponse("review_plan_sha256=" + digest, RestStatus.OK));
+                    return;
+                }
+                if (!PromotionPlanFingerprint.approved(productionApprovedPlan, digest)) {
+                    listener.onResponse(new MessageStatusResponse("Production promotion plan differs from approved review", RestStatus.FORBIDDEN));
+                    return;
+                }
+            } catch (RuntimeException e) {
+                listener.onResponse(new MessageStatusResponse("Production promotion plan cannot be fingerprinted", RestStatus.CONFLICT));
+                return;
+            }
+        }
 
         if ((targetSpace == Space.TEST || targetSpace == Space.CUSTOM)
                 && this.hasEngineRelatedChanges(context)) {
