@@ -58,6 +58,17 @@ public class TransportPostPromoteActionTests extends OpenSearchTestCase {
             "{\"space\":\"test\",\"changes\":{\"policy\":[],\"integrations\":[],\"kvdbs\":[],"
                     + "\"decoders\":[],\"filters\":[],\"rules\":[{\"operation\":\"add\",\"id\":\"r1\"}]}}";
 
+    public void testFrozenProductionPromotionRejectedBeforeSearch() {
+        Client client = mock(Client.class);
+        var action = new TransportPostPromoteAction(mock(TransportService.class), mock(ActionFilters.class),
+                mock(SpaceService.class), mock(EngineService.class), mock(SecurityAnalyticsService.class), client, true);
+        var response = new AtomicReference<MessageStatusResponse>();
+        action.doExecute(mock(Task.class), new PostPromoteRequest(TEST_TO_CUSTOM_BODY),
+                ActionListener.wrap(response::set, e -> fail(e.getMessage())));
+        assertEquals(RestStatus.FORBIDDEN, response.get().getStatus());
+        org.mockito.Mockito.verifyNoInteractions(client);
+    }
+
     /** Runs a test to custom promotion whose detector lookup fails with {@code failure}. */
     @SuppressWarnings("unchecked")
     private MessageStatusResponse promoteWithFailingDetectorLookup(Exception failure) {
@@ -76,7 +87,7 @@ public class TransportPostPromoteActionTests extends OpenSearchTestCase {
                         mock(SpaceService.class),
                         mock(EngineService.class),
                         mock(SecurityAnalyticsService.class),
-                        client);
+                        client, false);
 
         AtomicReference<MessageStatusResponse> response = new AtomicReference<>();
         action.doExecute(
