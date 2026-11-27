@@ -49,6 +49,8 @@ sourceSets {
       include 'com/wazuh/wade/WindowService.java'
       include 'com/wazuh/wade/TemporalAdmission.java'
       include 'com/wazuh/wade/PairedTemporalReplay.java'
+      include 'com/wazuh/wade/TemporalJobRunner.java'
+      include 'com/wazuh/wade/IndexTemporalJobs.java'
       include 'com/wazuh/wade/IndexWindowStore.java'
       include 'com/wazuh/wade/WindowPlan.java'
       include 'com/wazuh/wade/EntityResolver.java'

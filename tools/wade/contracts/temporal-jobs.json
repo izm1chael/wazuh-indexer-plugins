@@ -1,0 +1,49 @@
+{
+  "index_patterns": [
+    "wade-v1-temporal-jobs"
+  ],
+  "template": {
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "schema_version": {
+          "type": "integer"
+        },
+        "tenant": {
+          "type": "keyword"
+        },
+        "scope_key": {
+          "type": "keyword"
+        },
+        "job_id": {
+          "type": "keyword"
+        },
+        "revision": {
+          "type": "long"
+        },
+        "fence": {
+          "type": "long"
+        },
+        "checkpoint": {
+          "type": "date_nanos"
+        },
+        "late_end": {
+          "type": "date_nanos"
+        },
+        "owner": {
+          "type": "keyword"
+        },
+        "expires": {
+          "type": "date_nanos"
+        },
+        "receipt": {
+          "type": "keyword"
+        }
+      }
+    }
+  },
+  "_meta": {
+    "wade_schema_version": 1,
+    "status": "unregistered_reference"
+  }
+}

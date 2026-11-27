@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import com.wazuh.wade.IndexWindowStore;
+import com.wazuh.wade.IndexTemporalJobs;
 import org.opensearch.ExceptionsHelper;
 import org.opensearch.action.DocWriteResponse;
 import org.opensearch.action.get.GetRequest;
@@ -61,7 +62,7 @@ public final class OpenSearchWindowBackend implements IndexWindowStore.Backend {
     public boolean replace(
             String index, String id, long sequence, long primaryTerm, Map<String, Object> body) {
         requireAllowed(index, id);
-        if (!IndexWindowStore.STATE.equals(index) || sequence < 0 || primaryTerm < 1) {
+        if ((!IndexWindowStore.STATE.equals(index) && !IndexTemporalJobs.INDEX.equals(index)) || sequence < 0 || primaryTerm < 1) {
             throw new IllegalArgumentException("invalid conditional state write");
         }
         requireWorkerContext.run();
@@ -102,7 +103,7 @@ public final class OpenSearchWindowBackend implements IndexWindowStore.Backend {
     }
 
     private static void requireAllowed(String index, String id) {
-        if ((!IndexWindowStore.STATE.equals(index) && !IndexWindowStore.PUBLICATIONS.equals(index))
+        if ((!IndexWindowStore.STATE.equals(index) && !IndexWindowStore.PUBLICATIONS.equals(index) && !IndexTemporalJobs.INDEX.equals(index))
                 || id == null || !id.matches("[0-9a-f]{64}")) {
             throw new IllegalArgumentException("unsupported index or document identity");
         }
