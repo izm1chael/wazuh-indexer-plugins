@@ -1,0 +1,18 @@
+# WADE native Indexer adapter prototype
+
+This isolated Python standard-library qualification harness exercises real OpenSearch-style REST request shapes using an injected transport. Nothing imports it from Wazuh runtime code, creates an index, installs a mapping, registers a job, discovers credentials or enables a detector. Store writes default to disabled. It is not the final Java plugin nor a production worker.
+
+## Run locally
+From the repository root: `python3 -m unittest discover -s tools/wade/native -v`. The 24 tests use fake Indexer responses, including a composite simulated source-to-finding cycle. No live cluster was contacted.
+
+## Components
+- source.py: exact native event index allowlist; verified partition inventory, source UUID and watermark supplied by the caller; PIT and search_after; bounded pages, events, source fields and time range. No caller-provided DSL. Reject partial/timed-out searches, missing availability timestamps, wrong scope or duplicate source references. Exclude events arriving after the as-of cutoff. Always attempt PIT close.
+- state.py: immutable create-only count-rule revision registry, SHA-256 selector and definition validation, job identity validation, seq_no/primary_term CAS, fenced leases, atomic checkpoint and pending envelope, immutable finding and receipt creation, then CAS acknowledgement. A partial delivery can resume without overwriting a conflicting finding.
+- transport.py: explicit HTTPS origin and caller-supplied credentials, verified TLS, no redirects/proxies, bounded request/response size and socket timeout, no blind retries. No credential discovery or storage.
+- runner.py: recover pending delivery first or process one contiguous window. Unknown input or evaluator outcomes cannot advance the checkpoint. Check that finding evidence references were admitted. The evaluator is a trusted callback, not yet a bridge to the Java engine or native Sigma evaluation.
+- delivery-receipts.json: proposed strict mapping, unregistered like the other three contracts.
+
+## Important qualification boundaries
+The fake transport does not prove RC2 REST compatibility, durability, DLS/FLS, tenant isolation, native rule semantics or throughput. A trusted external service must resolve the concrete partition inventory, verify UUIDs and completeness/availability authority, inject scoped credentials, enforce job and rule permissions, and restrict who can call the evaluator and store methods. Partition attributes and tenant strings alone are not authorization. Validate PIT shard creation, cursor ordering/tie-breaker and date precision against pinned RC2; this harness rejects timestamps with precision beyond microseconds. Verify native source timestamp population and clock discipline, including skew and late-event reconciliation. The prototype does not renew leases, has no automatic retries, and leaves incomplete/failed work to lease expiry. Job documents are provisioned by the test fixture only. Verify native create-only and CAS semantics, strict mappings, refresh/read-after-write behavior, create-conflict reconciliation, partial acknowledgements, request limits and end-to-end delivery under real cluster failures before any activation.
+
+The registered rule is not yet bound to the evaluator dispatch at runtime; the callback is trusted and must be replaced by a verified versioned engine adapter. Source data is read only through an explicitly supplied transport, and test credentials are synthetic. No native findings data stream writes or incident integration. Retention, reconciliation/retractions, scheduler, actual evaluator bridge, content packs and dashboard remain outstanding.
