@@ -130,7 +130,7 @@ def scalar(source, field):
     return node
 
 
-def content_snapshot(send, cfg, space):
+def content_details(send, cfg, space):
     filters = [{"term": {"space.name": space}}, {"term": {"document.id": cfg["integration"]}}]
     integration = search(send, "wazuh-threatintel-integrations", filters, 1)
     if len(integration) != 1:
@@ -161,7 +161,14 @@ def content_snapshot(send, cfg, space):
     if seen != set(rules):
         raise ValueError("Incomplete integration rule visibility")
     # Include exact content and sequence metadata. No claim to hash compiled mappings or engine state.
-    return sha({"integration": integration, "rules": hits}), enabled
+    return {"sha256": sha({"integration": integration, "rules": hits}), "enabled": enabled,
+            "integration": source["document"],
+            "rules": {scalar(hit["_source"], "document.id"): hit["_source"]["document"] for hit in hits}}
+
+
+def content_snapshot(send, cfg, space):
+    details = content_details(send, cfg, space)
+    return details["sha256"], details["enabled"]
 
 
 def events(send, cfg):
