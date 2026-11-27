@@ -254,5 +254,27 @@
     ],
     "index_permissions": [],
     "tenant_permissions": []
+  },
+  "detection_release_submitter": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/detection/release_submit"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "detection_release_reader": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/detection/release_read",
+      "cluster:admin/wazuh/detection/release_day"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
+  },
+  "detection_release_reviewer": {
+    "cluster_permissions": [
+      "cluster:admin/wazuh/detection/release_review"
+    ],
+    "index_permissions": [],
+    "tenant_permissions": []
   }
 }

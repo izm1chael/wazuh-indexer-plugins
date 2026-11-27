@@ -66,6 +66,8 @@ public class PluginSettings {
     public static final Setting<Boolean> INCIDENTS_ENABLED =
             Setting.boolSetting("plugins.setup.incidents.enabled", false, Setting.Property.NodeScope);
 
+    public static final Setting<Boolean> DETECTION_RELEASES_ENABLED =
+            Setting.boolSetting("plugins.setup.detection.releases.enabled", false, Setting.Property.NodeScope);
     public static final Setting<Boolean> BEHAVIOUR_OBSERVATIONS_ENABLED =
             Setting.boolSetting("plugins.setup.incidents.behaviour.observations.enabled", false, Setting.Property.NodeScope);
     public static final Setting<Boolean> BEHAVIOUR_PROMOTION_ENABLED =
