@@ -1,0 +1,57 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Independent, opt-in RC2 packaging experiment. Not included in the parent build.
+buildscript {
+  ext {
+    opensearch_version = System.getProperty("opensearch.version", "3.6.0-SNAPSHOT")
+    wazuh_version = System.getProperty("version") ?: new groovy.json.JsonSlurper()
+        .parse(new File(projectDir, "../../../VERSION.json")).version
+    revision = System.getProperty("revision", "0")
+  }
+  repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url "https://ci.opensearch.org/ci/dbc/snapshots/maven/" }
+  }
+  dependencies {
+    classpath "org.opensearch.gradle:build-tools:${opensearch_version}"
+  }
+}
+apply plugin: 'java'
+apply plugin: 'opensearch.opensearchplugin'
+apply plugin: 'opensearch.pluginzip'
+
+group = 'com.wazuh'
+version = "${wazuh_version}.${revision}"
+
+opensearchplugin {
+  name 'wazuh-indexer-wade'
+  description 'WADE experimental inert analytics kernel package'
+  classname 'com.wazuh.wade.plugin.WadePlugin'
+  licenseFile file('../../../LICENSE.txt')
+  noticeFile file('../../../NOTICE.txt')
+}
+
+repositories {
+  mavenLocal()
+  mavenCentral()
+  maven { url "https://ci.opensearch.org/ci/dbc/snapshots/maven/" }
+}
+sourceSets {
+  main {
+    java {
+      srcDir '../src'
+      // Only pure engines; no subprocess entrypoints, local store or worker code.
+      include 'com/wazuh/wade/plugin/**'
+      include 'com/wazuh/wade/DetectionKernel.java'
+      include 'com/wazuh/wade/TemporalCorrelation.java'
+      include 'com/wazuh/wade/CrossWindowCorrelation.java'
+      include 'com/wazuh/wade/EntityResolver.java'
+      include 'com/wazuh/wade/EntityRisk.java'
+      include 'com/wazuh/wade/BehaviourBaseline.java'
+      include 'com/wazuh/wade/FeatureHistory.java'
+      include 'com/wazuh/wade/DetectionQuality.java'
+      include 'com/wazuh/wade/RuleLifecycle.java'
+      include 'com/wazuh/wade/ExecutionControl.java'
+    }
+  }
+}
