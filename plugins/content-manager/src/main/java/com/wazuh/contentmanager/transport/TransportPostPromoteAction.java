@@ -839,9 +839,18 @@ public class TransportPostPromoteAction
             ActionListener<MessageStatusResponse> listener) {
         if(caller==null||releaseReservation==null)throw DetectionReleaseReservation.denied();
         List<String> rules=releaseRuleUpdates(diff);
+        Set<String> expected=Set.copyOf(rules);
+        Map<String,Map<String,Object>> oldRules=context.oldVersions.get(Constants.KEY_RULES);
+        if(!context.rulesToApply.keySet().equals(expected)||oldRules==null||!oldRules.keySet().equals(expected)||
+                oldRules.values().stream().anyMatch(java.util.Objects::isNull))throw DetectionReleaseReservation.denied();
+        for(String type:APPLY_RESOURCE_TYPES)if(!Constants.KEY_RULES.equals(type)&&!context.getApplyMap(type).isEmpty())throw DetectionReleaseReservation.denied();
+        for(String type:DELETE_RESOURCE_TYPES)if(!context.getDeleteSet(type).isEmpty())throw DetectionReleaseReservation.denied();
+        // All rule-only preview strings are ASCII UUIDs/operations. This is the same sorted-key
+        // compact JSON hash as the Python receipt; arrays remain ordered and drift fails closed.
+        String previewHash=PromotionPlanFingerprint.of(Map.of("changes",diff.getChanges()));
         try(var ignored=caller.context().get()){
             if(!caller.actor().equals(DetectionReleaseReservation.principal(releaseThreadPool)))throw DetectionReleaseReservation.denied();
-            releaseReservation.reserve(digest,caller.actor(),rules,productionApprovalExpires,ActionListener.wrap(reserved->{
+            releaseReservation.reserve(digest,caller.actor(),rules,previewHash,productionApprovalExpires,ActionListener.wrap(reserved->{
                 if(!PromotionPlanFingerprint.active(productionApprovalExpires,java.time.Instant.now())){
                     // Reservation has already been consumed. Never re-open it after an uncertain attempt.
                     listener.onResponse(new MessageStatusResponse("Release expired after reservation; inspect ledger",RestStatus.CONFLICT));

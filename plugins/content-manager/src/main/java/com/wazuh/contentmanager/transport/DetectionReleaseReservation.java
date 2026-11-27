@@ -45,7 +45,7 @@ final class DetectionReleaseReservation {
         try{return DetectionRelease.actor(parts[0].trim().replace("\\|","|"));}
         catch(IllegalArgumentException e){throw denied();}
     }
-    void reserve(String plan,String deployer,List<String> rules,String configuredExpiry,ActionListener<Reserved> listener){
+    void reserve(String plan,String deployer,List<String> rules,String previewHash,String configuredExpiry,ActionListener<Reserved> listener){
         if(!deployer.equals(principal(pool)))throw denied();
         DetectionRelease.hash(plan);
         var restored=ContextPreservingActionListener.wrapPreservingContext(listener,pool.getThreadContext());
@@ -54,6 +54,7 @@ final class DetectionReleaseReservation {
                 if(!response.isExists()||!DetectionRelease.INDEX.equals(response.getIndex())||!plan.equals(response.getId()))throw denied();
                 var row=response.getSourceAsMap();
                 DetectionRelease.validate(row);
+                if(!DetectionRelease.hash(previewHash).equals(DetectionRelease.evidence(row.get("evidence")).get("preview_sha256")))throw denied();
                 var review=DetectionRelease.exact(row.get("review"),java.util.Set.of("actor","at","decision","reason","pack_sha256","deployer","expires"));
                 if(!configuredExpiry.equals(review.get("expires"))||!PromotionPlanFingerprint.active(configuredExpiry,Instant.now()))throw denied();
                 var reserved=DetectionRelease.reserve(row,plan,deployer,rules,Instant.now());

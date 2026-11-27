@@ -29,7 +29,7 @@ public final class DetectionRelease {
     public static final String INDEX = ".wazuh-detection-releases-v1";
     public static final String FORMAT = "wazuh-detection-release-v1";
     private static final Set<String> EVIDENCE = Set.of("pack_sha256","test_sha256","custom_sha256","preview_sha256",
-            "labels_sha256","integration","changed_rules","historical_events","prospective_events",
+            "labels_sha256","integration","cluster","space","dataset","changed_rules","historical_events","prospective_events",
             "prospective_seconds","historical_metrics","prospective_metrics");
     private static final Set<String> METRICS = Set.of("positive","negative","unknown","lost_positive","gained_positive",
             "new_false_positive","removed_false_positive","baseline_tp","baseline_fp","baseline_tn","baseline_fn",
@@ -96,6 +96,7 @@ public final class DetectionRelease {
         var e=exact(raw,EVIDENCE);
         for(String key:List.of("pack_sha256","test_sha256","custom_sha256","preview_sha256","labels_sha256"))hash(e.get(key));
         uuid(e.get("integration"));
+        for(String key:List.of("cluster","space","dataset"))text(e.get(key),256);
         List<String> rules=rules(e.get("changed_rules"));
         int h=count(e.get("historical_events"),30000),p=count(e.get("prospective_events"),30000);
         if(h+p>30000||count(e.get("prospective_seconds"),288*3600)<86400)throw invalid();
