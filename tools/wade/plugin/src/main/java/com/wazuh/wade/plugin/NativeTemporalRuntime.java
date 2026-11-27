@@ -29,6 +29,7 @@ public final class NativeTemporalRuntime {
     private final TemporalPromotion promotion;
     private final IndexTemporalJobs jobs;
     private final TemporalJobRunner runner;
+    private final WindowService service;
     private final PairedTemporalReplay replay;
     private final IndexReplayEvidence evidence;
 
@@ -51,7 +52,7 @@ public final class NativeTemporalRuntime {
         TemporalAdmission admission=new TemporalAdmission(promotion,inventory,reader);
         IndexWindowStore windows=new IndexWindowStore(backend,scope,settings.writesEnabled());
         jobs=new IndexTemporalJobs(backend,scope,settings.writesEnabled());
-        WindowService service=new WindowService((actor,request,permission)->{
+        service=new WindowService((actor,request,permission)->{
             sameActor(actor);requireScope(request.scope());context.requireWindow(request,permission);
         },admission,admission,windows,windows,clock);
         runner=new TemporalJobRunner((actor,job)->{
@@ -76,6 +77,12 @@ public final class NativeTemporalRuntime {
     public boolean approve(long expected,String replayReceipt,String shadowReceipt,Duration ttl){return promotion.approve(principal(),expected,replayReceipt,shadowReceipt,ttl);}
     public boolean activate(long expected){return promotion.activate(principal(),expected);}
     public boolean withdraw(long expected){return promotion.withdraw(principal(),expected);}
+    public boolean deactivate(long expected){return promotion.deactivate(principal(),expected);}
+    public WindowService.Status drain(WindowService.Request request){
+        requireScope(request.scope());String actor=principal();context.requireWindow(request,WindowService.Permission.DRAIN);
+        if(!definition(request.policy().version()).policy().equals(request.policy()))throw new SecurityException("unregistered drain policy");
+        return service.drain(actor,request);
+    }
     public boolean provisionJob(TemporalJobRunner.Job job){
         requireScope(job.scope());context.requireJob(job);
         var active=registry.load(rule);

@@ -10,7 +10,7 @@ import java.util.*;
 
 /** In-process orchestration. Trusted adapters must enforce permissions and atomic durable CAS. */
 public final class WindowService {
-    public enum Permission { EVALUATE, PUBLISH }
+    public enum Permission { EVALUATE, PUBLISH, DRAIN }
     public enum Status { WITHHELD, NO_CHANGE, STAGED, RECOVERED, CONFLICT }
     public record Scope(String tenant,String namespace,String kind,String id) {
         public Scope { key(tenant); key(namespace); key(id); if(!Set.of("USER","HOST","SERVICE","CLOUD_PRINCIPAL","AGENT").contains(kind)) throw new IllegalArgumentException("scope kind"); }
@@ -92,6 +92,18 @@ public final class WindowService {
         sink.deliver(request,old.pending());
         authority.require(principal,request,Permission.PUBLISH);
         return store.compareAndSet(request.windowKey(),old,new Envelope(Math.incrementExact(old.token()),old.state(),null))?Status.RECOVERED:Status.CONFLICT;
+    }
+    /** Authorized drain of already-staged output, including retired rules; never reads telemetry. */
+    public Status drain(String principal,Request request){
+        key(principal);Objects.requireNonNull(request);
+        if(request.asOf().isAfter(clock.instant()))throw new IllegalArgumentException("future drain");
+        authority.require(principal,request,Permission.DRAIN);
+        String id=request.windowKey();Envelope old=load(id);
+        if(old.pending()==null)return Status.NO_CHANGE;
+        if(old.pending().publication().asOf().isAfter(request.asOf()))throw new IllegalStateException("stale drain request");
+        sink.deliver(request,old.pending());
+        authority.require(principal,request,Permission.DRAIN);
+        return store.compareAndSet(id,old,new Envelope(Math.incrementExact(old.token()),old.state(),null))?Status.RECOVERED:Status.CONFLICT;
     }
     private Envelope load(String id) {
         Envelope result=store.load(id);

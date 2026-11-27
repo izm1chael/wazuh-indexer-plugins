@@ -11,7 +11,7 @@ import static com.wazuh.wade.WindowService.*;
 
 /** Paired-replay promotion policy and single active pointer. Trusted persistence and identity ports. */
 public final class TemporalPromotion implements TemporalAdmission.Approved {
-    public enum Action { APPROVE, ACTIVATE, WITHDRAW, EXECUTE }
+    public enum Action { APPROVE, ACTIVATE, WITHDRAW, DEACTIVATE, EXECUTE }
     public record Rule(String tenant,String id){public Rule{key(tenant);key(id);}public String keyDigest(){return hash("wade-promotion-rule-v1",tenant,id);}}
     public record Revision(TemporalAdmission.Definition definition,String author){public Revision{Objects.requireNonNull(definition);key(author);}}
     public record Approval(String champion,String candidate,String replayReceipt,String shadowReceipt,String approver,String author,Instant expires){
@@ -59,6 +59,14 @@ public final class TemporalPromotion implements TemporalAdmission.Approved {
     public boolean withdraw(String actor,long expected){
         key(actor);expected(expected);authority.require(actor,rule,Action.WITHDRAW);State old=required(expected);if(old.pending()==null)throw new IllegalStateException("no approval");
         return states.compareAndSet(rule,old,new State(old.ruleKey(),Math.incrementExact(old.sequence()),old.champion(),old.active(),null,audit(old,Action.WITHDRAW,actor,old.pending(),clock.instant())));
+    }
+    /** Emergency stop. A stopped revision cannot resume without a newly approved candidate. */
+    public boolean deactivate(String actor,long expected){
+        key(actor);expected(expected);authority.require(actor,rule,Action.DEACTIVATE);State old=required(expected);
+        if(!old.active()&&old.pending()==null)throw new IllegalStateException("already inactive");
+        String audit=hash("wade-deactivate-v1",old.ruleKey(),Long.toString(old.sequence()),Objects.toString(old.lastAudit(),""),old.champion(),actor,clock.instant().toString());
+        authority.require(actor,rule,Action.DEACTIVATE);
+        return states.compareAndSet(rule,old,new State(old.ruleKey(),Math.incrementExact(old.sequence()),old.champion(),false,null,audit));
     }
     /** Called in the authenticated execution context; never returns a draft or unactivated baseline. */
     public TemporalAdmission.Definition resolve(Request request){
