@@ -437,6 +437,10 @@ public class PluginSettings {
      * {@code 403 FORBIDDEN} for every caller, regardless of role. Intended for externally managed
      * (e.g. Wazuh Cloud) deployments. Defaults to true.
      */
+    /** Operator-controlled production promotion freeze while replay/tuning is underway. */
+    public static final Setting<Boolean> PRODUCTION_PROMOTION_FROZEN =
+            Setting.boolSetting("plugins.content_manager.promotion.production_frozen", false, Setting.Property.NodeScope);
+
     public static final Setting<Boolean> POLICY_UPDATE_ENABLED =
             Setting.boolSetting(
                     "plugins.content_manager.catalog.policy_update.enabled",
@@ -812,6 +816,7 @@ public class PluginSettings {
     private final boolean createDetectors;
     private final boolean updateOnDemand;
     private final boolean policyUpdateEnabled;
+    private final boolean productionPromotionFrozen;
     private volatile boolean isTelemetryEnabled;
     private volatile int maxIntegrations;
     private volatile int maxDecoders;
@@ -873,6 +878,7 @@ public class PluginSettings {
         this.createDetectors = CREATE_DETECTORS.get(settings);
         this.updateOnDemand = UPDATE_ON_DEMAND.get(settings);
         this.policyUpdateEnabled = POLICY_UPDATE_ENABLED.get(settings);
+        this.productionPromotionFrozen = PRODUCTION_PROMOTION_FROZEN.get(settings);
         this.isTelemetryEnabled = TELEMETRY_ENABLED.get(settings);
         this.maxIntegrations = MAX_INTEGRATIONS.get(settings);
         this.maxDecoders = MAX_DECODERS.get(settings);
@@ -1200,6 +1206,8 @@ public class PluginSettings {
      *
      * @return true if policy updates are enabled, false otherwise.
      */
+    public boolean isProductionPromotionFrozen() { return this.productionPromotionFrozen; }
+
     public boolean isPolicyUpdateEnabled() {
         return this.policyUpdateEnabled;
     }

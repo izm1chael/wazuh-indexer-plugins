@@ -63,6 +63,7 @@ import com.wazuh.contentmanager.engine.service.EngineService;
 import com.wazuh.contentmanager.rest.model.RestResponse;
 import com.wazuh.contentmanager.rest.model.SpaceDiff;
 import com.wazuh.contentmanager.utils.Constants;
+import com.wazuh.contentmanager.settings.PluginSettings;
 
 /**
  * Transport action for POST /promote. Executes the full promotion process: validation, engine
@@ -138,6 +139,12 @@ public class TransportPostPromoteAction
         try {
             SpaceDiff spaceDiff = MAPPER.readValue(body, SpaceDiff.class);
             this.validatePromoteRequest(spaceDiff);
+            if (Space.TEST.equals(spaceDiff.getSpace()) && PluginSettings.getInstance().isProductionPromotionFrozen()) {
+                listener.onResponse(new MessageStatusResponse(
+                        "Production promotion frozen for replay and tuning; operator approval required",
+                        RestStatus.FORBIDDEN));
+                return;
+            }
 
             this.validateNoDetectorLeftEmptyAsync(
                     spaceDiff,
