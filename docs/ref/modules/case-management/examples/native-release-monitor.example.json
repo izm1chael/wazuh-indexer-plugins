@@ -1,0 +1,10 @@
+{
+  "endpoint": "https://indexer.example.invalid:9200",
+  "username": "release-monitor",
+  "ca_file": "/etc/wazuh-release-monitor/ca.pem",
+  "plan_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "baseline_from": "2026-11-27T08:00:00Z",
+  "baseline_until": "2026-11-27T09:00:00Z",
+  "post_from": "2026-11-27T10:00:00Z",
+  "post_until": "2026-11-27T11:00:00Z"
+}
