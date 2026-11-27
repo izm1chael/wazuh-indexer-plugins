@@ -4,7 +4,6 @@ here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 out=$(mktemp -d)
 trap 'rm -rf "$out"' EXIT HUP INT TERM
 javac --release 17 -Xlint:all -Werror -d "$out" "$here"/src/com/wazuh/wade/*.java "$here"/test/com/wazuh/wade/*.java
-java -cp "$out" com.wazuh.wade.DetectionKernelTests
-java -cp "$out" com.wazuh.wade.AnalyticsTests
-java -cp "$out" com.wazuh.wade.ControlTests
-java -cp "$out" com.wazuh.wade.GovernanceTests
+for suite in DetectionKernelTests AnalyticsTests ControlTests GovernanceTests PipelineTests; do
+    java -cp "$out" "com.wazuh.wade.$suite"
+done
