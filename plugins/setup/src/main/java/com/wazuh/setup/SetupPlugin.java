@@ -65,6 +65,10 @@ import com.wazuh.setup.action.IncidentHuntAction;
 import com.wazuh.setup.action.IncidentEntityInvestigationAction;
 import com.wazuh.setup.action.EntityBehaviourAction;
 import com.wazuh.setup.action.RuleBehaviourAction;
+import com.wazuh.setup.action.EventBehaviourAction;
+import com.wazuh.setup.incident.EventBehaviourService;
+import com.wazuh.setup.rest.RestEventBehaviourAction;
+import com.wazuh.setup.transport.TransportEventBehaviourAction;
 import com.wazuh.setup.action.BehaviourObservationAction;
 import com.wazuh.setup.incident.BehaviourObservationService;
 import com.wazuh.setup.rest.RestBehaviourObservationAction;
@@ -322,7 +326,7 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
         IncidentAutomationService automation = new IncidentAutomationService(client, threadPool, incidents, automationStore, Clock.systemUTC());
         IncidentHuntService hunt = new IncidentHuntService(client);
         RuleBehaviourService ruleBehaviour = new RuleBehaviourService(client, threadPool, Clock.systemUTC());
-        return List.of(new BehaviourObservationService(client, threadPool, ruleBehaviour, incidentWriter, Clock.systemUTC()), ruleBehaviour, new EntityBehaviourService(threadPool, hunt, Clock.systemUTC()), new IncidentEntityInvestigationService(client, threadPool, hunt), new IncidentSoarService(incidents, Clock.systemUTC()), automationStore, automation, this.settingsIndex, this.settingsAdminIndex, this.sessionsIndex, incidentReader, incidentWriter, investigation, new CorrelationPreviewService(client), new AnalyticsExecutionService(client, threadPool, Clock.systemUTC(), incidents), hunt, new CorrelationPolicyStore(client, threadPool, Clock.systemUTC()), new IndicatorCatalogStore(client, threadPool, Clock.systemUTC()), new IncidentMetricsService(client, threadPool, Clock.systemUTC()));
+        return List.of(new EventBehaviourService(client, threadPool, Clock.systemUTC()), new BehaviourObservationService(client, threadPool, ruleBehaviour, incidentWriter, Clock.systemUTC()), ruleBehaviour, new EntityBehaviourService(threadPool, hunt, Clock.systemUTC()), new IncidentEntityInvestigationService(client, threadPool, hunt), new IncidentSoarService(incidents, Clock.systemUTC()), automationStore, automation, this.settingsIndex, this.settingsAdminIndex, this.sessionsIndex, incidentReader, incidentWriter, investigation, new CorrelationPreviewService(client), new AnalyticsExecutionService(client, threadPool, Clock.systemUTC(), incidents), hunt, new CorrelationPolicyStore(client, threadPool, Clock.systemUTC()), new IndicatorCatalogStore(client, threadPool, Clock.systemUTC()), new IncidentMetricsService(client, threadPool, Clock.systemUTC()));
     }
 
     @Override
@@ -436,6 +440,7 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
             handlers.add(new RestIncidentEntityInvestigationAction());
             handlers.add(new RestEntityBehaviourAction());
             handlers.add(new RestRuleBehaviourAction());
+            handlers.add(new RestEventBehaviourAction());
             if (PluginSettings.BEHAVIOUR_OBSERVATIONS_ENABLED.get(settings)) handlers.add(new RestBehaviourObservationAction());
             handlers.add(new RestCorrelationPolicyAction());
             handlers.add(new RestIncidentAutomationAction());
@@ -472,6 +477,7 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
                 new ActionPlugin.ActionHandler<>(IncidentEntityInvestigationAction.INSTANCE, TransportIncidentEntityInvestigationAction.class),
                 new ActionPlugin.ActionHandler<>(EntityBehaviourAction.INSTANCE, TransportEntityBehaviourAction.class),
                 new ActionPlugin.ActionHandler<>(RuleBehaviourAction.INSTANCE, TransportRuleBehaviourAction.class),
+                new ActionPlugin.ActionHandler<>(EventBehaviourAction.INSTANCE, TransportEventBehaviourAction.class),
                 new ActionPlugin.ActionHandler<>(BehaviourObservationAction.PUBLISH, TransportBehaviourObservationAction.Publish.class),
                 new ActionPlugin.ActionHandler<>(BehaviourObservationAction.READ, TransportBehaviourObservationAction.Read.class),
                 new ActionPlugin.ActionHandler<>(BehaviourObservationAction.REVIEW, TransportBehaviourObservationAction.Review.class),
@@ -507,6 +513,6 @@ public class SetupPlugin extends Plugin implements ClusterPlugin, ActionPlugin {
                 PluginSettings.ANALYTICS_ACTOR, PluginSettings.ANALYTICS_POLICIES, PluginSettings.AUTOMATION_ENABLED,
                 PluginSettings.AUTOMATION_ACTOR, PluginSettings.AUTOMATION_POLICY, PluginSettings.SOAR_ENABLED, PluginSettings.SOAR_ACTOR,
                 PluginSettings.SOAR_MANAGER, PluginSettings.SOAR_AGENTS, PluginSettings.WORKFLOWS_ENABLED, PluginSettings.BEHAVIOUR_ENABLED, PluginSettings.RULE_BEHAVIOUR_ENABLED, PluginSettings.BEHAVIOUR_OBSERVATIONS_ENABLED,
-                PluginSettings.BEHAVIOUR_PROMOTION_ENABLED, PluginSettings.BEHAVIOUR_PUBLISHER, PluginSettings.BEHAVIOUR_SCOPES);
+                PluginSettings.EVENT_BEHAVIOUR_ENABLED, PluginSettings.BEHAVIOUR_PROMOTION_ENABLED, PluginSettings.BEHAVIOUR_PUBLISHER, PluginSettings.BEHAVIOUR_SCOPES);
     }
 }

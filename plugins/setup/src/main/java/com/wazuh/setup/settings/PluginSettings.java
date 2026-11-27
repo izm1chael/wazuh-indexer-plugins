@@ -74,6 +74,8 @@ public class PluginSettings {
             Setting.simpleString("plugins.setup.incidents.behaviour.publisher", "", Setting.Property.NodeScope);
     public static final Setting<String> BEHAVIOUR_SCOPES =
             Setting.simpleString("plugins.setup.incidents.behaviour.approved_scopes", "", Setting.Property.NodeScope);
+    public static final Setting<Boolean> EVENT_BEHAVIOUR_ENABLED =
+            Setting.boolSetting("plugins.setup.incidents.behaviour.events.enabled", false, Setting.Property.NodeScope);
     public static final Setting<Boolean> RULE_BEHAVIOUR_ENABLED =
             Setting.boolSetting("plugins.setup.incidents.behaviour.rule.enabled", false, Setting.Property.NodeScope);
     public static final Setting<Boolean> BEHAVIOUR_ENABLED =
