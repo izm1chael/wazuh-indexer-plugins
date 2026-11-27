@@ -47,6 +47,7 @@ sourceSets {
       include 'com/wazuh/wade/CrossWindowCorrelation.java'
       include 'com/wazuh/wade/FindingReconciliation.java'
       include 'com/wazuh/wade/WindowService.java'
+      include 'com/wazuh/wade/TemporalAdmission.java'
       include 'com/wazuh/wade/IndexWindowStore.java'
       include 'com/wazuh/wade/WindowPlan.java'
       include 'com/wazuh/wade/EntityResolver.java'

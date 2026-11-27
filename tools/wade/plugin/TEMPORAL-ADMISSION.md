@@ -1,0 +1,7 @@
+# In-process registered WCS temporal admission
+
+TemporalAdmission implements WindowService Registry and Source interfaces for an explicitly restricted agent-scoped WCS selector. Its definition digest binds tenant, rule ID/revision, mode, span, limits, stage order and exact term values. It checks the full attested backing-index inventory before reading, with a bounded aggregate row budget, exact index UUID, agent ID, event and availability timestamps, distinct source identities and explicit incomplete outcomes. Missing terms with no definite mismatch withhold the evaluation. Later availability is excluded. No arbitrary query DSL, no Sigma compatibility claim. The reference source ID is a digest of index UUID and document ID; authorized reverse resolution is still required for analyst pivots.
+
+Approved rule resolution, inventory completeness, namespace/tenant/agent validity, authoritative availability and UUID verification are trusted ports, not implemented security checks. Multiple partitions are read separately; stable snapshots across mutations and completeness require native qualification. No native scheduler or rule promotion adapter. The existing Python harness remains unchanged.
+
+Local verification: JDK 21 target 17, warnings as errors, 98 assertions across five Java suites (17 new). Actual selected late cross-window sequence tested through WindowService publication recovery. All newly tested blobs checked against GitHub before push. Prior full suites not run here. No live cluster.
