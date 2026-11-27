@@ -120,6 +120,7 @@ def main():
                 compiled=step(work,out,'dashboard-typescript',['tsc','--strict','--target','ES2020','--module','commonjs','--lib','ES2020,DOM','--rootDir','public','--outDir','build','public/review.ts','public/application.ts'],120)
                 steps.append(compiled)
                 if compiled['status']=='PASS': steps.append(step(work,out,'dashboard-review-tests',['node','--test','test/review.test.cjs'],120))
+                steps.append(step(root,out,'java-dashboard-contract',['python3','-B','tools/wade/test-replay-contract.py',str(work)],600))
         if args.native_build and all(s['status']=='PASS' for s in steps):
             report['opensearch_artifact_version']=args.opensearch_version
             # Require a fresh build output rather than accepting a stale ZIP. Gradle clean only targets this independent project.
