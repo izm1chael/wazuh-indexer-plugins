@@ -11,6 +11,7 @@ import ssl
 import sys
 import time
 import urllib.parse
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -176,8 +177,7 @@ def events(send, cfg):
         if len(canonical(source).encode()) > 65536:
             raise ValueError("Oversize event")
         rows.append({"index": hit["_index"], "id": hit["_id"], "source_sha256": sha(source), "source": source})
-    if not rows:
-        raise ValueError("No replay population")
+    # Empty exact searches are recorded as no observed events, not detection qualification.
     return rows
 
 
